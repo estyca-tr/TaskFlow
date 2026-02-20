@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -14,16 +15,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="One-on-One Manager API",
-    description="API for managing 1:1 meetings with employees, tracking topics, and analyzing trends",
-    version="1.0.0",
+    title="TaskFlow API",
+    description="API for managing tasks, meetings, and team collaboration",
+    version="2.0.0",
     lifespan=lifespan
 )
 
-# CORS configuration for frontend
+# CORS configuration - allow frontend origins
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000")
+origins = [origin.strip() for origin in allowed_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
