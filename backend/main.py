@@ -29,7 +29,7 @@ app = FastAPI(
     description="API for managing tasks, meetings, and team collaboration",
     version="2.0.0",
     lifespan=lifespan,
-    redirect_slashes=False  # Prevent 307 redirects for trailing slashes
+    root_path=""  # Let the proxy handle paths
 )
 
 # Add proxy headers middleware first
