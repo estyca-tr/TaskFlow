@@ -212,7 +212,11 @@ function People() {
       ) : (
         <div className="people-grid stagger">
           {people.map(person => (
-            <div key={person.id} className={`person-card ${person.person_type || 'employee'}`}>
+            <Link 
+              key={person.id} 
+              to={`/people/${person.id}`} 
+              className={`person-card clickable ${person.person_type || 'employee'}`}
+            >
               <div className="person-card-header">
                 <div className={`person-avatar ${person.person_type || 'employee'}`}>
                   <span className="avatar-letter">{person.name?.[0] || '?'}</span>
@@ -228,16 +232,24 @@ function People() {
                   )}
                 </div>
                 <div className="person-quick-actions">
-                  <button className="quick-action" onClick={() => openEditModal(person)} title="ערוך">
+                  <button 
+                    className="quick-action" 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditModal(person); }} 
+                    title="ערוך"
+                  >
                     <Edit size={14} />
                   </button>
-                  <button className="quick-action danger" onClick={() => handleDelete(person.id)} title="מחק">
+                  <button 
+                    className="quick-action danger" 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(person.id); }} 
+                    title="מחק"
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>
               </div>
               
-              <Link to={`/people/${person.id}`} className="person-info">
+              <div className="person-info">
                 <h3 className="person-name">{person.name}</h3>
                 
                 {person.role && (
@@ -260,7 +272,7 @@ function People() {
                     <span>{person.email}</span>
                   </div>
                 )}
-              </Link>
+              </div>
               
               <div className="person-footer">
                 <span className={`type-badge ${person.person_type || 'employee'}`}>
@@ -287,7 +299,7 @@ function People() {
                   פגישה אחרונה: {format(parseISO(person.last_meeting_date), 'd/M/yyyy')}
                 </div>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

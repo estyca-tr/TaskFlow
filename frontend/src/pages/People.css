@@ -221,6 +221,9 @@
 
 /* Person Card */
 .person-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
@@ -228,6 +231,13 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.person-card.clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-primary);
 }
 
 .person-card::before {
