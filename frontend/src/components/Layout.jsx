@@ -61,6 +61,17 @@ function Layout() {
               </NavLink>
             )
           })}
+          
+          {/* Mobile user button in nav */}
+          <button 
+            className="nav-link mobile-nav-user-btn"
+            onClick={() => setShowUserMenu(true)}
+          >
+            <span className="nav-icon user-icon">
+              <User size={20} />
+            </span>
+            <span className="nav-label">חשבון</span>
+          </button>
         </nav>
         
         <div className="sidebar-footer">

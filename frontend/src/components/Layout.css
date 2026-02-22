@@ -91,6 +91,11 @@
   flex: 1;
 }
 
+/* Hide mobile nav user button on desktop */
+.mobile-nav-user-btn {
+  display: none;
+}
+
 .nav-indicator {
   position: absolute;
   right: 0;
@@ -263,9 +268,19 @@
     display: none;
   }
   
-  /* Show mobile user button */
-  .mobile-user-btn {
-    display: flex;
+  /* Show mobile user button in nav */
+  .mobile-nav-user-btn {
+    display: flex !important;
+  }
+  
+  .mobile-nav-user-btn .user-icon {
+    background: var(--accent-primary);
+    border-radius: 50%;
+    padding: 2px;
+  }
+  
+  .mobile-nav-user-btn .user-icon svg {
+    color: #000;
   }
 }
 
