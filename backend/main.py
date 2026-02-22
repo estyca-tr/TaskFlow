@@ -1,9 +1,27 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
 from database import init_db
 from routers import employees, meetings, analytics, tasks, calendar_meetings, quick_notes, users
+
+
+class CORSHeadersMiddleware(BaseHTTPMiddleware):
+    """Add CORS headers to all responses"""
+    async def dispatch(self, request: Request, call_next):
+        # Handle preflight OPTIONS requests
+        if request.method == "OPTIONS":
+            response = Response(status_code=200)
+        else:
+            response = await call_next(request)
+        
+        # Add CORS headers to all responses
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "3600"
+        return response
 
 
 @asynccontextmanager
@@ -20,31 +38,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration - allow all origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,
-)
-
-
-# Manual OPTIONS handler for CORS preflight
-@app.options("/{full_path:path}")
-async def options_handler(request: Request, full_path: str):
-    """Handle all OPTIONS requests for CORS preflight"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Max-Age": "3600",
-        }
-    )
+# Add custom CORS middleware (handles both preflight and regular requests)
+app.add_middleware(CORSHeadersMiddleware)
 
 # Include routers
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
