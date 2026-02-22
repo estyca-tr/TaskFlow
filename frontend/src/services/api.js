@@ -1,5 +1,27 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://taskflow-production-6cb6.up.railway.app/api'
 
+// Helper to get current user ID from localStorage
+function getCurrentUserId() {
+  try {
+    const user = localStorage.getItem('taskflow_user')
+    if (user) {
+      return JSON.parse(user).id
+    }
+  } catch (e) {
+    console.error('Error getting user ID:', e)
+  }
+  return null
+}
+
+// Helper to add user_id to params
+function addUserIdToParams(params = {}) {
+  const userId = getCurrentUserId()
+  if (userId) {
+    params.user_id = userId
+  }
+  return params
+}
+
 async function fetchAPI(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`
   
@@ -25,19 +47,39 @@ async function fetchAPI(endpoint, options = {}) {
   return response.json()
 }
 
+// Users API
+export const usersAPI = {
+  login: (username) => fetchAPI('/users/login', {
+    method: 'POST',
+    body: JSON.stringify({ username })
+  }),
+  
+  getMe: (userId) => fetchAPI(`/users/me?user_id=${userId}`),
+  
+  checkUsername: (username) => fetchAPI(`/users/check/${username}`),
+  
+  migrateData: (userId) => fetchAPI(`/users/migrate-data/${userId}`, {
+    method: 'POST'
+  })
+}
+
 // Employees
 export const employeesAPI = {
   getAll: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
+    const query = new URLSearchParams(addUserIdToParams(params)).toString()
     return fetchAPI(`/employees${query ? `?${query}` : ''}`)
   },
   
   getById: (id) => fetchAPI(`/employees/${id}`),
   
-  create: (data) => fetchAPI('/employees', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  create: (data) => {
+    const userId = getCurrentUserId()
+    const queryStr = userId ? `?user_id=${userId}` : ''
+    return fetchAPI(`/employees${queryStr}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
   
   update: (id, data) => fetchAPI(`/employees/${id}`, {
     method: 'PUT',
@@ -95,12 +137,12 @@ export const meetingsAPI = {
 // Tasks
 export const tasksAPI = {
   getAll: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
+    const query = new URLSearchParams(addUserIdToParams(params)).toString()
     return fetchAPI(`/tasks${query ? `?${query}` : ''}`)
   },
   
   getMy: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
+    const query = new URLSearchParams(addUserIdToParams(params)).toString()
     return fetchAPI(`/tasks/my${query ? `?${query}` : ''}`)
   },
   
@@ -112,10 +154,14 @@ export const tasksAPI = {
   
   getById: (id) => fetchAPI(`/tasks/${id}`),
   
-  create: (data) => fetchAPI('/tasks', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  create: (data) => {
+    const userId = getCurrentUserId()
+    const queryStr = userId ? `?user_id=${userId}` : ''
+    return fetchAPI(`/tasks${queryStr}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
   
   createBulk: (tasks) => fetchAPI('/tasks/bulk', {
     method: 'POST',
@@ -163,9 +209,17 @@ export const analyticsAPI = {
 
 // Calendar Meetings
 export const calendarAPI = {
-  getToday: () => fetchAPI('/calendar'),
+  getToday: () => {
+    const userId = getCurrentUserId()
+    const queryStr = userId ? `?user_id=${userId}` : ''
+    return fetchAPI(`/calendar${queryStr}`)
+  },
   
-  getByDate: (date) => fetchAPI(`/calendar?target_date=${date}`),
+  getByDate: (date) => {
+    const userId = getCurrentUserId()
+    const userIdStr = userId ? `&user_id=${userId}` : ''
+    return fetchAPI(`/calendar?target_date=${date}${userIdStr}`)
+  },
   
   getWeek: (startDate) => {
     const query = startDate ? `?start_date=${startDate}` : ''
@@ -174,10 +228,14 @@ export const calendarAPI = {
   
   getById: (id) => fetchAPI(`/calendar/${id}`),
   
-  create: (data) => fetchAPI('/calendar', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  create: (data) => {
+    const userId = getCurrentUserId()
+    const queryStr = userId ? `?user_id=${userId}` : ''
+    return fetchAPI(`/calendar${queryStr}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
   
   update: (id, data) => fetchAPI(`/calendar/${id}`, {
     method: 'PUT',
@@ -217,16 +275,20 @@ export const calendarAPI = {
 // Quick Notes
 export const quickNotesAPI = {
   getAll: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
+    const query = new URLSearchParams(addUserIdToParams(params)).toString()
     return fetchAPI(`/notes${query ? `?${query}` : ''}`)
   },
   
   getById: (id) => fetchAPI(`/notes/${id}`),
   
-  create: (data) => fetchAPI('/notes', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  create: (data) => {
+    const userId = getCurrentUserId()
+    const queryStr = userId ? `?user_id=${userId}` : ''
+    return fetchAPI(`/notes${queryStr}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
   
   update: (id, data) => fetchAPI(`/notes/${id}`, {
     method: 'PUT',

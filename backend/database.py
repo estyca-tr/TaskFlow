@@ -27,7 +27,7 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    from models import Employee, Meeting, ActionItem, Topic, Task, CalendarMeeting, MeetingPrepNote
+    from models import User, Employee, Meeting, ActionItem, Topic, Task, CalendarMeeting, MeetingPrepNote, QuickNote
     Base.metadata.create_all(bind=engine)
 
 

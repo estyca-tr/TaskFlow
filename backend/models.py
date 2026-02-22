@@ -6,6 +6,23 @@ import enum
 from database import Base
 
 
+class User(Base):
+    """משתמש במערכת"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    display_name = Column(String(100))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    employees = relationship("Employee", back_populates="user", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
+    quick_notes = relationship("QuickNote", back_populates="user", cascade="all, delete-orphan")
+    calendar_meetings = relationship("CalendarMeeting", back_populates="user", cascade="all, delete-orphan")
+
+
 class MoodLevel(enum.Enum):
     VERY_LOW = 1
     LOW = 2
@@ -50,6 +67,7 @@ class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # קשר למשתמש
     name = Column(String(100), nullable=False)
     role = Column(String(100))
     department = Column(String(100))
@@ -62,6 +80,7 @@ class Employee(Base):
     is_active = Column(Boolean, default=True)
 
     # Relationships
+    user = relationship("User", back_populates="employees")
     meetings = relationship("Meeting", back_populates="employee", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="person", cascade="all, delete-orphan")
 
@@ -132,7 +151,8 @@ class CalendarMeeting(Base):
     __tablename__ = "calendar_meetings"
 
     id = Column(Integer, primary_key=True, index=True)
-    external_id = Column(String(255), nullable=True, unique=True)  # Google Calendar event ID
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # קשר למשתמש
+    external_id = Column(String(255), nullable=True)  # Google Calendar event ID (removed unique constraint for multi-user)
     title = Column(String(300), nullable=False)
     description = Column(Text)
     start_time = Column(DateTime, nullable=False)
@@ -146,6 +166,7 @@ class CalendarMeeting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    user = relationship("User", back_populates="calendar_meetings")
     prep_notes = relationship("MeetingPrepNote", back_populates="calendar_meeting", cascade="all, delete-orphan")
 
 
@@ -171,6 +192,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # קשר למשתמש
     title = Column(String(200), nullable=False)
     description = Column(Text)
     
@@ -190,6 +212,7 @@ class Task(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    user = relationship("User", back_populates="tasks")
     person = relationship("Employee", back_populates="tasks")
     meeting = relationship("Meeting", back_populates="tasks")
 
@@ -207,6 +230,7 @@ class QuickNote(Base):
     __tablename__ = "quick_notes"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # קשר למשתמש
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
     category = Column(String(20), default="general")  # general, link, credential, contact, snippet
@@ -222,6 +246,7 @@ class QuickNote(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    user = relationship("User", back_populates="quick_notes")
     person = relationship("Employee")
 
 

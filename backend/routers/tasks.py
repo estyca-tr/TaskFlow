@@ -47,10 +47,15 @@ def get_tasks(
     status: Optional[str] = None,
     priority: Optional[str] = None,
     person_id: Optional[int] = None,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Get all tasks with optional filtering"""
     query = db.query(Task)
+    
+    # Filter by user if provided
+    if user_id:
+        query = query.filter(Task.user_id == user_id)
     
     if task_type:
         query = query.filter(Task.task_type == task_type)
@@ -72,6 +77,8 @@ def get_tasks(
     
     # Reset filters for fetching
     query = db.query(Task)
+    if user_id:
+        query = query.filter(Task.user_id == user_id)
     if task_type:
         query = query.filter(Task.task_type == task_type)
     if status:
@@ -97,10 +104,14 @@ def get_tasks(
 @router.get("/my", response_model=List[TaskResponse])
 def get_my_tasks(
     status: Optional[str] = None,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Get personal tasks only (not related to a person)"""
     query = db.query(Task).filter(Task.task_type == "personal")
+    
+    if user_id:
+        query = query.filter(Task.user_id == user_id)
     
     if status:
         query = query.filter(Task.status == status)
@@ -159,7 +170,7 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=TaskResponse, status_code=201)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+def create_task(task: TaskCreate, user_id: Optional[int] = None, db: Session = Depends(get_db)):
     """Create a new task"""
     # Validate person_id if provided
     if task.person_id:
@@ -173,7 +184,10 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
         if not meeting:
             raise HTTPException(status_code=404, detail="Meeting not found")
     
-    db_task = Task(**task.model_dump())
+    task_data = task.model_dump()
+    if user_id:
+        task_data["user_id"] = user_id
+    db_task = Task(**task_data)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)

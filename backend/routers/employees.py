@@ -17,10 +17,15 @@ def get_employees(
     active_only: bool = Query(True),
     person_type: Optional[str] = None,
     search: Optional[str] = None,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Get all employees/people with optional filtering"""
     query = db.query(Employee)
+    
+    # Filter by user if provided
+    if user_id:
+        query = query.filter(Employee.user_id == user_id)
     
     if active_only:
         query = query.filter(Employee.is_active == True)
@@ -105,9 +110,12 @@ def get_employee(employee_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=EmployeeResponse, status_code=201)
-def create_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(employee: EmployeeCreate, user_id: Optional[int] = None, db: Session = Depends(get_db)):
     """Create a new employee/person"""
-    db_employee = Employee(**employee.model_dump())
+    employee_data = employee.model_dump()
+    if user_id:
+        employee_data["user_id"] = user_id
+    db_employee = Employee(**employee_data)
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)

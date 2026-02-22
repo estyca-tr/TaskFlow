@@ -1,5 +1,6 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Plus, BarChart3, CheckSquare, Sparkles, CalendarDays, StickyNote } from 'lucide-react'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Users, Plus, BarChart3, CheckSquare, Sparkles, CalendarDays, StickyNote, LogOut, User } from 'lucide-react'
+import { useUser } from '../context/UserContext'
 import './Layout.css'
 
 const navItems = [
@@ -14,6 +15,13 @@ const navItems = [
 
 function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useUser()
+  
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
   
   return (
     <div className="layout">
@@ -54,10 +62,19 @@ function Layout() {
         </nav>
         
         <div className="sidebar-footer">
-          <div className="footer-card">
-            <p className="footer-text">צריכה עזרה?</p>
-            <a href="#" className="footer-link">מדריך למשתמש</a>
-          </div>
+          {user && (
+            <div className="user-info">
+              <div className="user-avatar">
+                <User size={18} />
+              </div>
+              <div className="user-details">
+                <span className="user-name">{user.display_name || user.username}</span>
+              </div>
+              <button className="logout-btn" onClick={handleLogout} title="יציאה">
+                <LogOut size={18} />
+              </button>
+            </div>
+          )}
           <p className="version">גרסה 2.0</p>
         </div>
       </aside>

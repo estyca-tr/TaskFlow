@@ -45,6 +45,7 @@ router = APIRouter()
 @router.get("/", response_model=CalendarMeetingsListResponse)
 async def get_calendar_meetings(
     target_date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format"),
+    user_id: Optional[int] = Query(None, description="Filter by user"),
     db: Session = Depends(get_db)
 ):
     """קבלת ישיבות לתאריך מסוים (ברירת מחדל: היום)"""
@@ -60,12 +61,18 @@ async def get_calendar_meetings(
     day_start = datetime.combine(selected_date, datetime.min.time())
     day_end = datetime.combine(selected_date, datetime.max.time())
     
-    meetings = db.query(CalendarMeeting).filter(
+    query = db.query(CalendarMeeting).filter(
         and_(
             CalendarMeeting.start_time >= day_start,
             CalendarMeeting.start_time <= day_end
         )
-    ).order_by(CalendarMeeting.start_time).all()
+    )
+    
+    # Filter by user if provided
+    if user_id:
+        query = query.filter(CalendarMeeting.user_id == user_id)
+    
+    meetings = query.order_by(CalendarMeeting.start_time).all()
     
     return CalendarMeetingsListResponse(
         meetings=[CalendarMeetingResponse.model_validate(m) for m in meetings],
@@ -113,9 +120,14 @@ async def get_calendar_meeting(meeting_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=CalendarMeetingResponse)
-async def create_calendar_meeting(meeting: CalendarMeetingCreate, db: Session = Depends(get_db)):
+async def create_calendar_meeting(
+    meeting: CalendarMeetingCreate, 
+    user_id: Optional[int] = Query(None, description="User ID"),
+    db: Session = Depends(get_db)
+):
     """יצירת ישיבה חדשה (ידנית)"""
     db_meeting = CalendarMeeting(
+        user_id=user_id,
         external_id=meeting.external_id,
         title=meeting.title,
         description=meeting.description,

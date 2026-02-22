@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
 from database import init_db
-from routers import employees, meetings, analytics, tasks, calendar_meetings, quick_notes
+from routers import employees, meetings, analytics, tasks, calendar_meetings, quick_notes, users
 
 
 class ProxyHeadersMiddleware(BaseHTTPMiddleware):
@@ -45,6 +45,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(employees.router, prefix="/api/employees", tags=["Employees"])
 app.include_router(meetings.router, prefix="/api/meetings", tags=["Meetings"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])

@@ -59,10 +59,15 @@ async def get_quick_notes(
     person_id: Optional[int] = Query(None, description="Filter by person"),
     search: Optional[str] = Query(None, description="Search in title and content"),
     pinned_only: bool = Query(False, description="Show only pinned notes"),
+    user_id: Optional[int] = Query(None, description="Filter by user"),
     db: Session = Depends(get_db)
 ):
     """קבלת כל הפתקים"""
     query = db.query(QuickNote)
+    
+    # Filter by user if provided
+    if user_id:
+        query = query.filter(QuickNote.user_id == user_id)
     
     if category:
         query = query.filter(QuickNote.category == category)
@@ -123,14 +128,19 @@ async def get_quick_note(note_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=QuickNoteResponse)
-async def create_quick_note(note: QuickNoteCreate, db: Session = Depends(get_db)):
+async def create_quick_note(
+    note: QuickNoteCreate, 
+    user_id: Optional[int] = Query(None, description="User ID"),
+    db: Session = Depends(get_db)
+):
     """יצירת פתק חדש"""
     db_note = QuickNote(
         title=note.title,
         content=note.content,
         category=note.category,
         person_id=note.person_id,
-        is_pinned=note.is_pinned
+        is_pinned=note.is_pinned,
+        user_id=user_id
     )
     db.add(db_note)
     db.commit()
