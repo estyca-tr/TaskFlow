@@ -249,16 +249,30 @@ def get_discussion_topics(
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
     
-    # Query 1: Tasks I created about this person
-    query1 = db.query(Task).filter(
-        Task.task_type == "discuss_with",
-        Task.person_id == person_id
-    )
-    
-    if not include_completed:
-        query1 = query1.filter(Task.status != "completed")
-    
-    my_tasks = query1.all()
+    # Query 1: Tasks I created about this person (only if user_id is provided)
+    my_tasks = []
+    if user_id:
+        query1 = db.query(Task).filter(
+            Task.task_type == "discuss_with",
+            Task.person_id == person_id,
+            Task.user_id == user_id  # Only tasks created by current user
+        )
+        
+        if not include_completed:
+            query1 = query1.filter(Task.status != "completed")
+        
+        my_tasks = query1.all()
+    else:
+        # Fallback for backward compatibility
+        query1 = db.query(Task).filter(
+            Task.task_type == "discuss_with",
+            Task.person_id == person_id
+        )
+        
+        if not include_completed:
+            query1 = query1.filter(Task.status != "completed")
+        
+        my_tasks = query1.all()
     
     # Query 2: Tasks this person (by name) assigned to me
     assigned_tasks = []
