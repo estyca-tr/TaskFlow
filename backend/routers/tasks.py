@@ -237,25 +237,79 @@ def get_assigned_tasks_count(
 def get_discussion_topics(
     person_id: int,
     include_completed: bool = False,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
-    """Get discussion topics for a specific person"""
+    """
+    Get discussion topics for a specific person.
+    Also includes tasks that this person (by name) assigned to the current user.
+    """
     # Verify person exists
     person = db.query(Employee).filter(Employee.id == person_id).first()
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
     
-    query = db.query(Task).filter(
+    # Query 1: Tasks I created about this person
+    query1 = db.query(Task).filter(
         Task.task_type == "discuss_with",
         Task.person_id == person_id
     )
     
     if not include_completed:
-        query = query.filter(Task.status != "completed")
+        query1 = query1.filter(Task.status != "completed")
     
-    tasks = query.order_by(Task.priority.desc(), Task.created_at.desc()).all()
+    my_tasks = query1.all()
     
-    return [build_task_response(task, db) for task in tasks]
+    # Query 2: Tasks this person (by name) assigned to me
+    assigned_tasks = []
+    if user_id:
+        # Find user whose name matches this person's name
+        person_name_lower = person.name.strip().lower()
+        matching_user = db.query(User).filter(
+            or_(
+                func.lower(func.trim(User.username)) == person_name_lower,
+                func.lower(func.trim(User.display_name)) == person_name_lower
+            )
+        ).first()
+        
+        if matching_user:
+            # Find tasks created by this user that are assigned to me (current user)
+            # Look for tasks where the person_id refers to someone with my username
+            current_user = db.query(User).filter(User.id == user_id).first()
+            if current_user:
+                my_name_lower = current_user.username.strip().lower()
+                my_display_lower = (current_user.display_name or "").strip().lower()
+                
+                # Find employee IDs that match my name (across all users' people lists)
+                my_person_ids = db.query(Employee.id).filter(
+                    func.lower(func.trim(Employee.name)).in_([my_name_lower, my_display_lower])
+                ).all()
+                my_person_ids = [p[0] for p in my_person_ids]
+                
+                if my_person_ids:
+                    query2 = db.query(Task).filter(
+                        Task.user_id == matching_user.id,
+                        Task.person_id.in_(my_person_ids)
+                    )
+                    
+                    if not include_completed:
+                        query2 = query2.filter(Task.status != "completed")
+                    
+                    assigned_tasks = query2.all()
+    
+    # Combine and deduplicate tasks
+    all_task_ids = set()
+    combined_tasks = []
+    
+    for task in my_tasks + assigned_tasks:
+        if task.id not in all_task_ids:
+            all_task_ids.add(task.id)
+            combined_tasks.append(task)
+    
+    # Sort by priority and creation date
+    combined_tasks.sort(key=lambda t: (-['low', 'medium', 'high'].index(t.priority or 'medium'), t.created_at), reverse=True)
+    
+    return [build_task_response(task, db, include_creator=True) for task in combined_tasks]
 
 
 @router.get("/today", response_model=List[TaskResponse])

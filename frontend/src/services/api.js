@@ -158,7 +158,9 @@ export const tasksAPI = {
   },
   
   getDiscussTopics: (personId, includeCompleted = false) => {
-    return fetchAPI(`/tasks/discuss/${personId}?include_completed=${includeCompleted}`)
+    const userId = getCurrentUserId()
+    const userIdParam = userId ? `&user_id=${userId}` : ''
+    return fetchAPI(`/tasks/discuss/${personId}?include_completed=${includeCompleted}${userIdParam}`)
   },
   
   getToday: () => {
