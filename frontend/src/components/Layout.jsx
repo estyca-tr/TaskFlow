@@ -92,14 +92,48 @@ function Layout() {
         </div>
       </aside>
       
+      {/* Mobile Header with User */}
+      <div 
+        className="mobile-header"
+        style={{
+          display: 'none',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '56px',
+          background: 'rgba(10, 10, 15, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          zIndex: 999,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 1rem',
+        }}
+      >
+        <span style={{ color: '#FFD000', fontWeight: 600, fontSize: '1.1rem' }}>TaskFlow</span>
+        <button 
+          onClick={() => setShowUserMenu(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: 'rgba(255, 208, 0, 0.15)',
+            border: '1px solid rgba(255, 208, 0, 0.3)',
+            borderRadius: '20px',
+            padding: '0.5rem 0.75rem',
+            color: '#FFD000',
+            cursor: 'pointer',
+          }}
+        >
+          <User size={18} />
+          <span style={{ fontSize: '0.85rem' }}>{user?.username?.slice(0, 6) || 'חשבון'}</span>
+        </button>
+      </div>
+      
       <main className="main-content">
         <Outlet />
       </main>
-      
-      {/* Mobile User Button */}
-      <button className="mobile-user-btn" onClick={() => setShowUserMenu(true)}>
-        <User size={20} />
-      </button>
       
       {/* Mobile User Menu */}
       {showUserMenu && (

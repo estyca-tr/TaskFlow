@@ -282,6 +282,16 @@
   .mobile-nav-user-btn .user-icon svg {
     color: #000;
   }
+  
+  /* Show mobile header */
+  .mobile-header {
+    display: flex !important;
+  }
+  
+  /* Add padding to main content for header */
+  .main-content {
+    padding-top: 70px !important;
+  }
 }
 
 /* Mobile User Button */
