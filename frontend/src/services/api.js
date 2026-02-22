@@ -28,23 +28,34 @@ async function fetchAPI(endpoint, options = {}) {
   const config = {
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...options.headers
     },
+    mode: 'cors',
     ...options
   }
   
-  const response = await fetch(url, config)
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.detail || `HTTP ${response.status}`)
+  try {
+    const response = await fetch(url, config)
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.detail || `HTTP ${response.status}`)
+    }
+    
+    if (response.status === 204) {
+      return null
+    }
+    
+    return response.json()
+  } catch (error) {
+    // Better error message for network/CORS errors
+    if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+      console.error('Network error - URL:', url)
+      throw new Error('שגיאת חיבור לשרת. אנא בדקי את החיבור לאינטרנט.')
+    }
+    throw error
   }
-  
-  if (response.status === 204) {
-    return null
-  }
-  
-  return response.json()
 }
 
 // Users API

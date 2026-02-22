@@ -1,20 +1,9 @@
-import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
 from database import init_db
 from routers import employees, meetings, analytics, tasks, calendar_meetings, quick_notes, users
-
-
-class ProxyHeadersMiddleware(BaseHTTPMiddleware):
-    """Handle X-Forwarded-Proto header for HTTPS behind proxy"""
-    async def dispatch(self, request: Request, call_next):
-        # Railway and other proxies set X-Forwarded-Proto
-        if request.headers.get("x-forwarded-proto") == "https":
-            request.scope["scheme"] = "https"
-        return await call_next(request)
 
 
 @asynccontextmanager
@@ -28,23 +17,34 @@ app = FastAPI(
     title="TaskFlow API",
     description="API for managing tasks, meetings, and team collaboration",
     version="2.0.0",
-    lifespan=lifespan,
-    root_path=""  # Let the proxy handle paths
+    lifespan=lifespan
 )
 
-# CORS configuration - allow all origins for production (must be first)
+# CORS configuration - allow all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    max_age=86400,  # Cache preflight for 24 hours
+    max_age=3600,
 )
 
-# Add proxy headers middleware after CORS
-app.add_middleware(ProxyHeadersMiddleware)
+
+# Manual OPTIONS handler for CORS preflight
+@app.options("/{full_path:path}")
+async def options_handler(request: Request, full_path: str):
+    """Handle all OPTIONS requests for CORS preflight"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 # Include routers
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
