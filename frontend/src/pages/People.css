@@ -217,6 +217,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.25rem;
+  width: 100%;
 }
 
 /* Person Card */
@@ -608,18 +609,30 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .people-page {
+    padding: 0;
+  }
+  
   .header-content {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 1rem;
+  }
+  
+  .header-title {
+    justify-content: center;
+    text-align: center;
   }
   
   .header-actions {
     width: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
   }
   
   .header-actions .btn {
-    flex: 1;
+    width: 100%;
+    justify-content: center;
   }
   
   .search-filter-section {
@@ -629,15 +642,54 @@
   
   .search-box {
     min-width: auto;
+    width: 100%;
   }
   
   .filter-tabs {
+    width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+  }
+  
+  .filter-tab {
+    flex-shrink: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
   }
   
   .people-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0;
+  }
+  
+  /* Fix person card on mobile */
+  .person-card {
+    margin: 0;
+    width: 100%;
+    padding: 1.25rem;
+  }
+  
+  .person-card.clickable:hover {
+    transform: none;
+  }
+  
+  /* Show quick actions on mobile by default */
+  .person-quick-actions {
+    opacity: 1;
+    position: relative;
+    z-index: 10;
+  }
+  
+  .quick-action {
+    padding: 0.625rem;
+    background: var(--bg-secondary);
+  }
+  
+  /* Prevent card navigation when clicking actions */
+  .person-card-header {
+    position: relative;
   }
   
   .form-row,
@@ -647,5 +699,20 @@
   
   .empty-actions {
     flex-direction: column;
+  }
+  
+  /* Modal adjustments for mobile */
+  .modal-overlay {
+    padding: 1rem;
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+  
+  .modal {
+    max-height: calc(100vh - 4rem);
+  }
+  
+  .modal form {
+    padding: 1rem;
   }
 }
