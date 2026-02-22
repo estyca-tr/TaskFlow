@@ -163,6 +163,20 @@ export const tasksAPI = {
   
   getToday: () => fetchAPI('/tasks/today'),
   
+  // Get tasks assigned to me by others
+  getAssignedToMe: (includeCompleted = false) => {
+    const userId = getCurrentUserId()
+    if (!userId) return Promise.resolve([])
+    return fetchAPI(`/tasks/assigned-to-me?user_id=${userId}&include_completed=${includeCompleted}`)
+  },
+  
+  // Get count of assigned tasks
+  getAssignedCount: () => {
+    const userId = getCurrentUserId()
+    if (!userId) return Promise.resolve({ count: 0 })
+    return fetchAPI(`/tasks/assigned-to-me/count?user_id=${userId}`)
+  },
+  
   getById: (id) => fetchAPI(`/tasks/${id}`),
   
   create: (data) => {

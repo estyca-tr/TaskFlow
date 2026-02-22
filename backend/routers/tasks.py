@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import datetime
 
 from database import get_db
-from models import Task, Employee, Meeting
+from models import Task, Employee, Meeting, User
 from schemas import (
     TaskCreate, TaskUpdate, TaskResponse, 
     TasksListResponse, ExtractTasksRequest, ExtractTasksResponse
@@ -119,6 +119,82 @@ def get_my_tasks(
     tasks = query.order_by(Task.due_date.asc().nullslast(), Task.created_at.desc()).all()
     
     return [build_task_response(task, db) for task in tasks]
+
+
+@router.get("/assigned-to-me", response_model=List[TaskResponse])
+def get_tasks_assigned_to_me(
+    user_id: int = Query(..., description="Current user ID"),
+    include_completed: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Get tasks that are assigned to the current user by name matching.
+    These are tasks created by OTHER users where the person_id refers to 
+    an Employee whose name matches the current user's username.
+    """
+    # Get current user
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    username = current_user.username.strip().lower()
+    display_name = (current_user.display_name or "").strip().lower()
+    
+    # Find all Employees (people) whose name matches the current user
+    matching_persons = db.query(Employee).filter(
+        func.lower(func.trim(Employee.name)).in_([username, display_name])
+    ).all()
+    
+    if not matching_persons:
+        return []
+    
+    person_ids = [p.id for p in matching_persons]
+    
+    # Find tasks that:
+    # 1. Are associated with one of these persons (person_id matches)
+    # 2. Were created by ANOTHER user (not the current user)
+    query = db.query(Task).filter(
+        Task.person_id.in_(person_ids),
+        Task.user_id != user_id  # Created by someone else
+    )
+    
+    if not include_completed:
+        query = query.filter(Task.status != "completed")
+    
+    tasks = query.order_by(Task.priority.desc(), Task.created_at.desc()).all()
+    
+    return [build_task_response(task, db) for task in tasks]
+
+
+@router.get("/assigned-to-me/count")
+def get_assigned_tasks_count(
+    user_id: int = Query(..., description="Current user ID"),
+    db: Session = Depends(get_db)
+):
+    """Get count of tasks assigned to the current user (not completed)"""
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        return {"count": 0}
+    
+    username = current_user.username.strip().lower()
+    display_name = (current_user.display_name or "").strip().lower()
+    
+    matching_persons = db.query(Employee).filter(
+        func.lower(func.trim(Employee.name)).in_([username, display_name])
+    ).all()
+    
+    if not matching_persons:
+        return {"count": 0}
+    
+    person_ids = [p.id for p in matching_persons]
+    
+    count = db.query(Task).filter(
+        Task.person_id.in_(person_ids),
+        Task.user_id != user_id,
+        Task.status != "completed"
+    ).count()
+    
+    return {"count": count}
 
 
 @router.get("/discuss/{person_id}", response_model=List[TaskResponse])

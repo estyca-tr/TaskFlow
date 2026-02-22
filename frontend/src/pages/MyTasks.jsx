@@ -3,7 +3,7 @@ import {
   CheckCircle2, Circle, Clock, Plus, Filter, 
   User, Calendar, MessageSquare, AlertCircle,
   Trash2, Target, Sparkles, X, Edit3, PlayCircle, Save, Search,
-  ChevronRight, ChevronLeft
+  ChevronRight, ChevronLeft, Inbox, UserCheck
 } from 'lucide-react'
 import { tasksAPI, employeesAPI } from '../services/api'
 import { 
@@ -35,12 +35,14 @@ const STATUSES = {
 
 function MyTasks() {
   const [tasks, setTasks] = useState([])
+  const [assignedTasks, setAssignedTasks] = useState([])
   const [people, setPeople] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('active')
   const [showNewTask, setShowNewTask] = useState(false)
   const [stats, setStats] = useState({ total: 0, pending: 0, in_progress: 0, completed: 0 })
+  const [activeTab, setActiveTab] = useState('my') // 'my' or 'assigned'
   
   const [newTask, setNewTask] = useState({
     title: '',
@@ -90,12 +92,14 @@ function MyTasks() {
         params.status = 'completed'
       }
       
-      const [tasksData, peopleData] = await Promise.all([
+      const [tasksData, peopleData, assignedData] = await Promise.all([
         tasksAPI.getAll(params),
-        employeesAPI.getAll()
+        employeesAPI.getAll(),
+        tasksAPI.getAssignedToMe(statusFilter === 'completed')
       ])
       
       setTasks(tasksData.tasks || [])
+      setAssignedTasks(assignedData || [])
       setStats({
         total: tasksData.total || 0,
         pending: tasksData.pending || 0,
@@ -280,7 +284,30 @@ function MyTasks() {
         </div>
       </header>
       
-      {/* Filters */}
+      {/* Tabs */}
+      <div className="tasks-tabs">
+        <button 
+          className={`tasks-tab ${activeTab === 'my' ? 'active' : ''}`}
+          onClick={() => setActiveTab('my')}
+        >
+          <Target size={18} />
+          המשימות שלי
+          <span className="tab-count">{tasks.length}</span>
+        </button>
+        <button 
+          className={`tasks-tab ${activeTab === 'assigned' ? 'active' : ''}`}
+          onClick={() => setActiveTab('assigned')}
+        >
+          <Inbox size={18} />
+          הוקצה לי
+          {assignedTasks.length > 0 && (
+            <span className="tab-count assigned">{assignedTasks.length}</span>
+          )}
+        </button>
+      </div>
+      
+      {/* Filters - only show for my tasks */}
+      {activeTab === 'my' && (
       <div className="filters-bar">
         <div className="filter-section">
           <span className="filter-label">
@@ -324,10 +351,11 @@ function MyTasks() {
           </div>
         </div>
       </div>
+      )}
       
       {/* Tasks List */}
       <div className="tasks-container">
-        {tasks.length === 0 ? (
+        {activeTab === 'my' && tasks.length === 0 ? (
           <div className="empty-tasks">
             <div className="empty-illustration">
               <Sparkles size={48} />
@@ -339,7 +367,15 @@ function MyTasks() {
               צור משימה ראשונה
             </button>
           </div>
-        ) : (
+        ) : activeTab === 'assigned' && assignedTasks.length === 0 ? (
+          <div className="empty-tasks">
+            <div className="empty-illustration">
+              <Inbox size={48} />
+            </div>
+            <h3>אין משימות שהוקצו לך</h3>
+            <p>כאשר מישהו יפתח משימה לדיון איתך, היא תופיע כאן</p>
+          </div>
+        ) : activeTab === 'my' ? (
           <div className="tasks-list stagger">
             {tasks.map(task => {
               const dueStatus = getDueDateStatus(task.due_date)
@@ -413,6 +449,77 @@ function MyTasks() {
                       title="מחק משימה"
                     >
                       <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          /* Assigned Tasks */
+          <div className="tasks-list stagger assigned-tasks-list">
+            {assignedTasks.map(task => {
+              const dueStatus = getDueDateStatus(task.due_date)
+              const TypeIcon = TASK_TYPES[task.task_type]?.icon
+              
+              return (
+                <div 
+                  key={task.id} 
+                  className={`task-card assigned-task ${task.status === 'completed' ? 'completed' : ''}`}
+                >
+                  <button 
+                    className={`task-checkbox ${task.status === 'completed' ? 'checked' : ''}`}
+                    onClick={() => handleToggleComplete(task)}
+                  >
+                    {task.status === 'completed' ? (
+                      <CheckCircle2 size={24} />
+                    ) : (
+                      <Circle size={24} />
+                    )}
+                  </button>
+                  
+                  <div className="task-body" onClick={() => handleEditTask(task)}>
+                    <div className="task-main">
+                      <div className="assigned-badge">
+                        <UserCheck size={14} />
+                        <span>הוקצה אלייך</span>
+                      </div>
+                      <h4 className="task-title">{task.title}</h4>
+                      {task.description && (
+                        <p className="task-desc">{task.description}</p>
+                      )}
+                    </div>
+                    
+                    <div className="task-tags">
+                      <span className={`task-type-tag ${task.task_type}`}>
+                        {TypeIcon && <TypeIcon size={12} />}
+                        {TASK_TYPES[task.task_type]?.label}
+                      </span>
+                      
+                      <span className={`status-tag ${task.status}`}>
+                        {STATUSES[task.status]?.label}
+                      </span>
+                      
+                      <span className={`priority-tag ${task.priority}`}>
+                        {PRIORITIES[task.priority]?.emoji}
+                      </span>
+                      
+                      {task.due_date && (
+                        <span className={`due-tag ${dueStatus}`}>
+                          <Clock size={12} />
+                          {format(parseISO(task.due_date), 'd/M/yyyy')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="task-actions">
+                    <button 
+                      className="task-edit"
+                      onClick={() => handleEditTask(task)}
+                      title="ערוך משימה"
+                    >
+                      <Edit3 size={16} />
                     </button>
                   </div>
                 </div>
