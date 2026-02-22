@@ -3,23 +3,30 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
-from passlib.context import CryptContext
+import hashlib
+import secrets
 
 from database import get_db
 from models import User, Employee, Task, QuickNote, CalendarMeeting
 
 router = APIRouter()
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    """Hash password using SHA-256 with salt"""
+    salt = secrets.token_hex(16)
+    password_hash = hashlib.sha256((salt + password).encode()).hexdigest()
+    return f"{salt}${password_hash}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Verify password against hash"""
+    try:
+        salt, stored_hash = hashed_password.split('$')
+        password_hash = hashlib.sha256((salt + plain_password).encode()).hexdigest()
+        return password_hash == stored_hash
+    except:
+        return False
 
 
 class UserLogin(BaseModel):
