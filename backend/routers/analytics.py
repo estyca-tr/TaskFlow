@@ -21,55 +21,73 @@ router = APIRouter()
 def get_overall_analytics(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
-    """Get overall analytics across all employees"""
+    """Get overall analytics across all employees for current user"""
     # Default to last 6 months if no dates provided
     if not end_date:
         end_date = datetime.utcnow()
     if not start_date:
         start_date = end_date - timedelta(days=180)
     
-    # Total counts
-    total_employees = db.query(func.count(Employee.id)).filter(Employee.is_active == True).scalar()
-    total_meetings = db.query(func.count(Meeting.id)).filter(
+    # Total counts - filtered by user_id
+    employee_query = db.query(func.count(Employee.id)).filter(Employee.is_active == True)
+    if user_id:
+        employee_query = employee_query.filter(Employee.user_id == user_id)
+    total_employees = employee_query.scalar()
+    
+    # Total meetings - filtered by user_id through employee
+    meeting_query = db.query(func.count(Meeting.id)).join(Employee).filter(
         Meeting.date >= start_date,
         Meeting.date <= end_date
-    ).scalar()
+    )
+    if user_id:
+        meeting_query = meeting_query.filter(Employee.user_id == user_id)
+    total_meetings = meeting_query.scalar()
     
-    # Top topics
-    topics = db.query(
+    # Top topics - filtered by user_id
+    topics_query = db.query(
         Topic.name,
         Topic.category,
         func.count(Topic.id).label('count')
-    ).join(Meeting).filter(
+    ).join(Meeting).join(Employee).filter(
         Meeting.date >= start_date,
         Meeting.date <= end_date
-    ).group_by(Topic.name, Topic.category).order_by(func.count(Topic.id).desc()).limit(10).all()
+    )
+    if user_id:
+        topics_query = topics_query.filter(Employee.user_id == user_id)
+    topics = topics_query.group_by(Topic.name, Topic.category).order_by(func.count(Topic.id).desc()).limit(10).all()
     
     top_topics = [TopicFrequency(topic=t[0], category=t[1], count=t[2]) for t in topics]
     
-    # Sentiment distribution
-    sentiments = db.query(
+    # Sentiment distribution - filtered by user_id
+    sentiment_query = db.query(
         Meeting.ai_sentiment,
         func.count(Meeting.id)
-    ).filter(
+    ).join(Employee).filter(
         Meeting.date >= start_date,
         Meeting.date <= end_date,
         Meeting.ai_sentiment.isnot(None)
-    ).group_by(Meeting.ai_sentiment).all()
+    )
+    if user_id:
+        sentiment_query = sentiment_query.filter(Employee.user_id == user_id)
+    sentiments = sentiment_query.group_by(Meeting.ai_sentiment).all()
     
     sentiment_distribution = {s[0]: s[1] for s in sentiments}
     
-    # Meetings per month
-    meetings_by_month = db.query(
+    # Meetings per month - filtered by user_id
+    meetings_month_query = db.query(
         extract('year', Meeting.date).label('year'),
         extract('month', Meeting.date).label('month'),
         func.count(Meeting.id)
-    ).filter(
+    ).join(Employee).filter(
         Meeting.date >= start_date,
         Meeting.date <= end_date
-    ).group_by('year', 'month').order_by('year', 'month').all()
+    )
+    if user_id:
+        meetings_month_query = meetings_month_query.filter(Employee.user_id == user_id)
+    meetings_by_month = meetings_month_query.group_by('year', 'month').order_by('year', 'month').all()
     
     meetings_per_month = {
         f"{int(m[0])}-{int(m[1]):02d}": m[2] for m in meetings_by_month

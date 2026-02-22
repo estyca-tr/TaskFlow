@@ -105,7 +105,7 @@ export const employeesAPI = {
 // Meetings
 export const meetingsAPI = {
   getAll: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
+    const query = new URLSearchParams(addUserIdToParams(params)).toString()
     return fetchAPI(`/meetings${query ? `?${query}` : ''}`)
   },
   
@@ -161,7 +161,11 @@ export const tasksAPI = {
     return fetchAPI(`/tasks/discuss/${personId}?include_completed=${includeCompleted}`)
   },
   
-  getToday: () => fetchAPI('/tasks/today'),
+  getToday: () => {
+    const userId = getCurrentUserId()
+    const queryStr = userId ? `?user_id=${userId}` : ''
+    return fetchAPI(`/tasks/today${queryStr}`)
+  },
   
   // Get tasks assigned to me by others
   getAssignedToMe: (includeCompleted = false) => {
@@ -210,7 +214,7 @@ export const tasksAPI = {
 // Analytics
 export const analyticsAPI = {
   getOverview: (params = {}) => {
-    const query = new URLSearchParams(params).toString()
+    const query = new URLSearchParams(addUserIdToParams(params)).toString()
     return fetchAPI(`/analytics/overview${query ? `?${query}` : ''}`)
   },
   

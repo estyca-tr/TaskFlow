@@ -24,6 +24,7 @@ def get_meetings(
     employee_id: Optional[int] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Get all meetings with optional filtering"""
@@ -32,6 +33,10 @@ def get_meetings(
         joinedload(Meeting.topics),
         joinedload(Meeting.employee)
     )
+    
+    # Filter by user_id through employee
+    if user_id:
+        query = query.join(Employee).filter(Employee.user_id == user_id)
     
     if employee_id:
         query = query.filter(Meeting.employee_id == employee_id)

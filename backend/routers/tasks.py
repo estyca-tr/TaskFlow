@@ -259,14 +259,22 @@ def get_discussion_topics(
 
 
 @router.get("/today", response_model=List[TaskResponse])
-def get_today_tasks(db: Session = Depends(get_db)):
-    """Get tasks due today or overdue"""
+def get_today_tasks(
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Get tasks due today or overdue for current user"""
     today = datetime.now().replace(hour=23, minute=59, second=59)
     
-    tasks = db.query(Task).filter(
+    query = db.query(Task).filter(
         Task.status.in_(["pending", "in_progress"]),
         Task.due_date <= today
-    ).order_by(Task.due_date.asc()).all()
+    )
+    
+    if user_id:
+        query = query.filter(Task.user_id == user_id)
+    
+    tasks = query.order_by(Task.due_date.asc()).all()
     
     return [build_task_response(task, db) for task in tasks]
 
