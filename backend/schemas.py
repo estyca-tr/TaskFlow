@@ -207,6 +207,7 @@ class TaskResponse(TaskBase):
     person_name: Optional[str] = None  # שם האדם הקשור
     assigned_by: Optional[str] = None  # שם המשתמש שיצר את המשימה
     assigned_by_id: Optional[int] = None  # ID של המשתמש שיצר את המשימה
+    is_assigned_to_me: bool = False  # האם זו משימה שהוקצתה לי (לא נוצרה על ידי)
     completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

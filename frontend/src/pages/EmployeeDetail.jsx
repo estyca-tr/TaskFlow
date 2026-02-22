@@ -160,73 +160,147 @@ function EmployeeDetail() {
         <div className="two-column-layout">
           {/* Discussion Topics Column */}
           <div className="column-section">
+            {/* My Tasks Section */}
             <div className="section-divider">
               <div className="section-divider-line"></div>
               <span className="section-divider-text">
                 <MessageSquare size={16} />
-                נושאים לדיון
+                נושאים שהוספתי לדיון
               </span>
               <div className="section-divider-line"></div>
             </div>
             
             <div className="card discussion-card">
-          <div className="card-header">
-            <span className="topics-count">
-              {discussionTopics.filter(t => t.status !== 'completed').length} נושאים פתוחים
-            </span>
-          </div>
-          
-          {discussionTopics.length > 0 ? (
-            <div className="discussion-list">
-              {discussionTopics.map(topic => (
-                <div 
-                  key={topic.id} 
-                  className={`discussion-item ${topic.status === 'completed' ? 'completed' : ''}`}
-                >
-                  <button 
-                    className={`topic-checkbox ${topic.status === 'completed' ? 'checked' : ''}`}
-                    onClick={() => handleToggleTopicComplete(topic)}
-                  >
-                    {topic.status === 'completed' ? (
-                      <CheckCircle2 size={20} />
-                    ) : (
-                      <Circle size={20} />
-                    )}
-                  </button>
-                  
-                  <div className="topic-content">
-                    <span className="topic-title">{topic.title}</span>
-                    {topic.description && (
-                      <span className="topic-desc">{topic.description}</span>
-                    )}
-                    {topic.due_date && (
-                      <span className="topic-due">
-                        <Calendar size={12} />
-                        {format(parseISO(topic.due_date), 'd/M/yyyy')}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="topic-priority" data-priority={topic.priority}>
-                    {topic.priority === 'high' ? '🔴' : topic.priority === 'medium' ? '🟡' : '🟢'}
-                  </div>
-                  
-                  <button 
-                    className="topic-delete"
-                    onClick={() => handleDeleteTopic(topic.id)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+              <div className="card-header">
+                <span className="topics-count">
+                  {discussionTopics.filter(t => t.status !== 'completed' && !t.is_assigned_to_me).length} נושאים פתוחים
+                </span>
+              </div>
+              
+              {discussionTopics.filter(t => !t.is_assigned_to_me).length > 0 ? (
+                <div className="discussion-list">
+                  {discussionTopics.filter(t => !t.is_assigned_to_me).map(topic => (
+                    <div 
+                      key={topic.id} 
+                      className={`discussion-item ${topic.status === 'completed' ? 'completed' : ''}`}
+                    >
+                      <button 
+                        className={`topic-checkbox ${topic.status === 'completed' ? 'checked' : ''}`}
+                        onClick={() => handleToggleTopicComplete(topic)}
+                      >
+                        {topic.status === 'completed' ? (
+                          <CheckCircle2 size={20} />
+                        ) : (
+                          <Circle size={20} />
+                        )}
+                      </button>
+                      
+                      <div className="topic-content">
+                        <span className="topic-title">{topic.title}</span>
+                        {topic.description && (
+                          <span className="topic-desc">{topic.description}</span>
+                        )}
+                        {topic.due_date && (
+                          <span className="topic-due">
+                            <Calendar size={12} />
+                            {format(parseISO(topic.due_date), 'd/M/yyyy')}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="topic-priority" data-priority={topic.priority}>
+                        {topic.priority === 'high' ? '🔴' : topic.priority === 'medium' ? '🟡' : '🟢'}
+                      </div>
+                      
+                      <button 
+                        className="topic-delete"
+                        onClick={() => handleDeleteTopic(topic.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="empty-topics">
+                  <MessageSquare size={32} />
+                  <p>אין נושאים לדיון</p>
+                  <span>הוסף נושאים מהמשימות שלי</span>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="empty-topics">
-              <MessageSquare size={32} />
-              <p>אין נושאים לדיון</p>
-              <span>הוסף נושאים מהמשימות שלי</span>
+
+            {/* Assigned to Me Section */}
+            <div className="section-divider" style={{ marginTop: '1.5rem' }}>
+              <div className="section-divider-line"></div>
+              <span className="section-divider-text assigned-section">
+                <Users size={16} />
+                נושאים שהקצו לי
+              </span>
+              <div className="section-divider-line"></div>
             </div>
-          )}
+            
+            <div className="card discussion-card assigned-card">
+              <div className="card-header">
+                <span className="topics-count assigned-count">
+                  {discussionTopics.filter(t => t.status !== 'completed' && t.is_assigned_to_me).length} נושאים פתוחים
+                </span>
+              </div>
+              
+              {discussionTopics.filter(t => t.is_assigned_to_me).length > 0 ? (
+                <div className="discussion-list">
+                  {discussionTopics.filter(t => t.is_assigned_to_me).map(topic => (
+                    <div 
+                      key={topic.id} 
+                      className={`discussion-item assigned ${topic.status === 'completed' ? 'completed' : ''}`}
+                    >
+                      <button 
+                        className={`topic-checkbox ${topic.status === 'completed' ? 'checked' : ''}`}
+                        onClick={() => handleToggleTopicComplete(topic)}
+                      >
+                        {topic.status === 'completed' ? (
+                          <CheckCircle2 size={20} />
+                        ) : (
+                          <Circle size={20} />
+                        )}
+                      </button>
+                      
+                      <div className="topic-content">
+                        <span className="topic-title">{topic.title}</span>
+                        {topic.assigned_by && (
+                          <span className="topic-assigned-by">הוקצה ע״י {topic.assigned_by}</span>
+                        )}
+                        {topic.description && (
+                          <span className="topic-desc">{topic.description}</span>
+                        )}
+                        {topic.due_date && (
+                          <span className="topic-due">
+                            <Calendar size={12} />
+                            {format(parseISO(topic.due_date), 'd/M/yyyy')}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="topic-priority" data-priority={topic.priority}>
+                        {topic.priority === 'high' ? '🔴' : topic.priority === 'medium' ? '🟡' : '🟢'}
+                      </div>
+                      
+                      <button 
+                        className="topic-delete"
+                        onClick={() => handleDeleteTopic(topic.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-topics">
+                  <Users size={32} />
+                  <p>אין נושאים שהוקצו לי</p>
+                  <span>{employee?.name} לא הקצה/הקצתה משימות</span>
+                </div>
+              )}
             </div>
           </div>
           

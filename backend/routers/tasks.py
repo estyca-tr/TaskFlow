@@ -14,7 +14,7 @@ from schemas import (
 router = APIRouter()
 
 
-def build_task_response(task: Task, db: Session, include_creator: bool = False) -> TaskResponse:
+def build_task_response(task: Task, db: Session, include_creator: bool = False, is_assigned_to_me: bool = False) -> TaskResponse:
     """Build a TaskResponse with person name and optionally creator info"""
     person_name = None
     if task.person_id:
@@ -43,6 +43,7 @@ def build_task_response(task: Task, db: Session, include_creator: bool = False) 
         person_name=person_name,
         assigned_by=assigned_by,
         assigned_by_id=assigned_by_id,
+        is_assigned_to_me=is_assigned_to_me,
         due_date=task.due_date,
         completed_at=task.completed_at,
         created_at=task.created_at,
@@ -311,19 +312,28 @@ def get_discussion_topics(
                     
                     assigned_tasks = query2.all()
     
-    # Combine and deduplicate tasks
-    all_task_ids = set()
-    combined_tasks = []
+    # Build responses with proper is_assigned_to_me flag
+    assigned_task_ids = {task.id for task in assigned_tasks}
     
-    for task in my_tasks + assigned_tasks:
+    all_task_ids = set()
+    result = []
+    
+    # Add my tasks (not assigned to me)
+    for task in my_tasks:
         if task.id not in all_task_ids:
             all_task_ids.add(task.id)
-            combined_tasks.append(task)
+            result.append(build_task_response(task, db, include_creator=True, is_assigned_to_me=False))
+    
+    # Add assigned tasks (assigned to me)
+    for task in assigned_tasks:
+        if task.id not in all_task_ids:
+            all_task_ids.add(task.id)
+            result.append(build_task_response(task, db, include_creator=True, is_assigned_to_me=True))
     
     # Sort by priority and creation date
-    combined_tasks.sort(key=lambda t: (-['low', 'medium', 'high'].index(t.priority or 'medium'), t.created_at), reverse=True)
+    result.sort(key=lambda t: (-['low', 'medium', 'high'].index(t.priority or 'medium'), t.created_at), reverse=True)
     
-    return [build_task_response(task, db, include_creator=True) for task in combined_tasks]
+    return result
 
 
 @router.get("/today", response_model=List[TaskResponse])

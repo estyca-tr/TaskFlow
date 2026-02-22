@@ -404,6 +404,36 @@
   margin-top: var(--space-xs);
 }
 
+/* Assigned Tasks Styling */
+.assigned-section {
+  background: linear-gradient(135deg, rgba(129, 140, 248, 0.15), rgba(99, 102, 241, 0.1));
+  border-color: #818cf8;
+}
+
+.assigned-card {
+  border-right: 3px solid #818cf8;
+}
+
+.assigned-count {
+  color: #818cf8;
+}
+
+.discussion-item.assigned {
+  background: linear-gradient(135deg, rgba(129, 140, 248, 0.08), transparent);
+  border-right: 2px solid #818cf8;
+}
+
+.topic-assigned-by {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #818cf8;
+  background: rgba(129, 140, 248, 0.1);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  margin-top: 0.25rem;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .detail-grid {
