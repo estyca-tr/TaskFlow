@@ -118,6 +118,35 @@
   color: var(--color-accent-primary);
 }
 
+/* Two Column Layout */
+.two-column-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+  margin-top: var(--space-lg);
+}
+
+.column-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.column-section .section-divider {
+  margin-top: 0;
+  margin-bottom: var(--space-md);
+}
+
+.column-section .card {
+  flex: 1;
+  min-height: 300px;
+}
+
+@media (max-width: 900px) {
+  .two-column-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Non-employee specific stats (colleagues and managers) */
 .non-employee-stats {
   grid-template-columns: repeat(3, 1fr);

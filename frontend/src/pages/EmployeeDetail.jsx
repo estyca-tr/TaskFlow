@@ -156,18 +156,20 @@ function EmployeeDetail() {
           </div>
         )}
         
-        {/* Section Divider - Discussion Topics */}
-        <div className="section-divider">
-          <div className="section-divider-line"></div>
-          <span className="section-divider-text">
-            <MessageSquare size={16} />
-            נושאים לדיון
-          </span>
-          <div className="section-divider-line"></div>
-        </div>
-        
-        {/* Discussion Topics */}
-        <div className="card discussion-card">
+        {/* Two-column layout for Discussion Topics and Meetings */}
+        <div className="two-column-layout">
+          {/* Discussion Topics Column */}
+          <div className="column-section">
+            <div className="section-divider">
+              <div className="section-divider-line"></div>
+              <span className="section-divider-text">
+                <MessageSquare size={16} />
+                נושאים לדיון
+              </span>
+              <div className="section-divider-line"></div>
+            </div>
+            
+            <div className="card discussion-card">
           <div className="card-header">
             <span className="topics-count">
               {discussionTopics.filter(t => t.status !== 'completed').length} נושאים פתוחים
@@ -225,20 +227,21 @@ function EmployeeDetail() {
               <span>הוסף נושאים מהמשימות שלי</span>
             </div>
           )}
-        </div>
-        
-        {/* Section Divider - Meetings */}
-        <div className="section-divider">
-          <div className="section-divider-line"></div>
-          <span className="section-divider-text">
-            <Calendar size={16} />
-            היסטוריית שיחות
-          </span>
-          <div className="section-divider-line"></div>
-        </div>
-        
-        {/* Meetings list */}
-        <div className="card meetings-card">
+            </div>
+          </div>
+          
+          {/* Meetings Column */}
+          <div className="column-section">
+            <div className="section-divider">
+              <div className="section-divider-line"></div>
+              <span className="section-divider-text">
+                <Calendar size={16} />
+                היסטוריית שיחות
+              </span>
+              <div className="section-divider-line"></div>
+            </div>
+            
+            <div className="card meetings-card">
           {meetings.length > 0 ? (
             <div className="meetings-timeline">
               {meetings.map(meeting => (
@@ -286,6 +289,8 @@ function EmployeeDetail() {
               </Link>
             </div>
           )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
