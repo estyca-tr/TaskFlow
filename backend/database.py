@@ -43,3 +43,27 @@ def init_db():
     """Initialize database tables"""
     from models import User, Employee, Meeting, ActionItem, Topic, Task, CalendarMeeting, MeetingPrepNote, QuickNote
     Base.metadata.create_all(bind=engine)
+    
+    # Run migrations for existing columns
+    run_migrations()
+
+
+def run_migrations():
+    """Run database migrations for schema changes"""
+    from sqlalchemy import text, inspect
+    
+    inspector = inspect(engine)
+    
+    # Check if users table exists
+    if 'users' in inspector.get_table_names():
+        columns = [col['name'] for col in inspector.get_columns('users')]
+        
+        # Add password_hash column if it doesn't exist
+        if 'password_hash' not in columns:
+            with engine.connect() as conn:
+                try:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+                    conn.commit()
+                    print("Added password_hash column to users table")
+                except Exception as e:
+                    print(f"Migration note: {e}")
