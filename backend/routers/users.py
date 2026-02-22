@@ -3,15 +3,34 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
+from passlib.context import CryptContext
 
 from database import get_db
 from models import User, Employee, Task, QuickNote, CalendarMeeting
 
 router = APIRouter()
 
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
 
 class UserLogin(BaseModel):
     username: str
+    password: str
+
+
+class UserRegister(BaseModel):
+    username: str
+    password: str
+    display_name: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -26,35 +45,82 @@ class UserResponse(BaseModel):
 
 
 @router.post("/login", response_model=UserResponse)
-async def login_or_register(data: UserLogin, db: Session = Depends(get_db)):
+async def login(data: UserLogin, db: Session = Depends(get_db)):
     """
-    Login with username - creates user if doesn't exist.
-    No password required.
+    Login with username and password.
     """
     username = data.username.strip().lower()
     
     if not username:
         raise HTTPException(status_code=400, detail="שם משתמש נדרש")
     
+    if not data.password:
+        raise HTTPException(status_code=400, detail="סיסמה נדרשת")
+    
     # Check if user exists
     user = db.query(User).filter(User.username == username).first()
     
-    if user:
-        # Update last login
-        user.last_login = datetime.utcnow()
-        db.commit()
-        db.refresh(user)
-    else:
-        # Create new user
-        user = User(
-            username=username,
-            display_name=data.username.strip(),  # Keep original casing for display
-            created_at=datetime.utcnow(),
-            last_login=datetime.utcnow()
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+    if not user:
+        raise HTTPException(status_code=401, detail="שם משתמש או סיסמה שגויים")
+    
+    # Verify password
+    if not user.password_hash:
+        raise HTTPException(status_code=401, detail="משתמש זה אינו מוגדר עם סיסמה. יש ליצור משתמש חדש.")
+    
+    if not verify_password(data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="שם משתמש או סיסמה שגויים")
+    
+    # Update last login
+    user.last_login = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    
+    return user
+
+
+@router.post("/register", response_model=UserResponse)
+async def register(data: UserRegister, db: Session = Depends(get_db)):
+    """
+    Register a new user with username and password.
+    If user exists without password, set the password.
+    """
+    username = data.username.strip().lower()
+    
+    if not username:
+        raise HTTPException(status_code=400, detail="שם משתמש נדרש")
+    
+    if not data.password:
+        raise HTTPException(status_code=400, detail="סיסמה נדרשת")
+    
+    if len(data.password) < 4:
+        raise HTTPException(status_code=400, detail="הסיסמה חייבת להכיל לפחות 4 תווים")
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.username == username).first()
+    if existing_user:
+        # If user exists but has no password, allow setting password
+        if not existing_user.password_hash:
+            existing_user.password_hash = hash_password(data.password)
+            existing_user.last_login = datetime.utcnow()
+            if data.display_name:
+                existing_user.display_name = data.display_name
+            db.commit()
+            db.refresh(existing_user)
+            return existing_user
+        else:
+            raise HTTPException(status_code=400, detail="שם משתמש כבר קיים במערכת")
+    
+    # Create new user
+    user = User(
+        username=username,
+        password_hash=hash_password(data.password),
+        display_name=data.display_name or data.username.strip(),
+        created_at=datetime.utcnow(),
+        last_login=datetime.utcnow()
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     
     return user
 

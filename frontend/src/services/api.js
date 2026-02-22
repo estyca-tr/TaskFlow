@@ -60,9 +60,18 @@ async function fetchAPI(endpoint, options = {}) {
 
 // Users API
 export const usersAPI = {
-  login: (username) => fetchAPI('/users/login', {
+  login: (username, password) => fetchAPI('/users/login', {
     method: 'POST',
-    body: JSON.stringify({ username })
+    body: JSON.stringify({ username, password })
+  }),
+  
+  register: (username, password, displayName = null) => fetchAPI('/users/register', {
+    method: 'POST',
+    body: JSON.stringify({ 
+      username, 
+      password,
+      display_name: displayName || username
+    })
   }),
   
   getMe: (userId) => fetchAPI(`/users/me?user_id=${userId}`),

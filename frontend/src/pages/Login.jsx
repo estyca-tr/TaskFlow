@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, ArrowLeft, Sparkles } from 'lucide-react'
+import { User, Lock, ArrowLeft, Sparkles, UserPlus } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 import { usersAPI } from '../services/api'
 import './Login.css'
 
 function Login() {
   const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [isRegister, setIsRegister] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { login } = useUser()
@@ -20,29 +22,39 @@ function Login() {
       return
     }
 
+    if (!password) {
+      setError('אנא הכנס/י סיסמה')
+      return
+    }
+
+    if (isRegister && password.length < 4) {
+      setError('הסיסמה חייבת להכיל לפחות 4 תווים')
+      return
+    }
+
     setLoading(true)
     setError('')
 
     try {
-      const userData = await usersAPI.login(username.trim())
-      login(userData)
-      
-      // Migrate existing data if this is the first login (user "אסתי")
-      if (userData.username === 'אסתי' || userData.username === 'esty') {
-        try {
-          await usersAPI.migrateData(userData.id)
-        } catch (e) {
-          console.log('Migration already done or no data to migrate')
-        }
+      let userData
+      if (isRegister) {
+        userData = await usersAPI.register(username.trim(), password)
+      } else {
+        userData = await usersAPI.login(username.trim(), password)
       }
-      
+      login(userData)
       navigate('/')
     } catch (err) {
-      setError(`שגיאה: ${err.message}`)
+      setError(err.message || 'שגיאה בהתחברות')
       console.error('Login error:', err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleMode = () => {
+    setIsRegister(!isRegister)
+    setError('')
   }
 
   return (
@@ -62,6 +74,23 @@ function Login() {
             <p>ניהול משימות ופגישות</p>
           </div>
           
+          <div className="login-mode-toggle">
+            <button 
+              className={`mode-btn ${!isRegister ? 'active' : ''}`}
+              onClick={() => { setIsRegister(false); setError('') }}
+              type="button"
+            >
+              כניסה
+            </button>
+            <button 
+              className={`mode-btn ${isRegister ? 'active' : ''}`}
+              onClick={() => { setIsRegister(true); setError('') }}
+              type="button"
+            >
+              הרשמה
+            </button>
+          </div>
+          
           <form onSubmit={handleSubmit} className="login-form">
             <div className="input-group">
               <label htmlFor="username">שם משתמש</label>
@@ -72,13 +101,23 @@ function Login() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && username.trim()) {
-                      handleSubmit(e)
-                    }
-                  }}
                   placeholder="הכנס/י את שמך..."
                   autoFocus
+                  disabled={loading}
+                />
+              </div>
+            </div>
+            
+            <div className="input-group">
+              <label htmlFor="password">סיסמה</label>
+              <div className="input-wrapper">
+                <Lock size={20} />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={isRegister ? "בחר/י סיסמה (לפחות 4 תווים)" : "הכנס/י סיסמה..."}
                   disabled={loading}
                 />
               </div>
@@ -93,21 +132,28 @@ function Login() {
             <button 
               type="submit" 
               className="login-btn"
-              disabled={loading || !username.trim()}
+              disabled={loading || !username.trim() || !password}
             >
               {loading ? (
                 <span className="loading-spinner"></span>
               ) : (
                 <>
-                  <span>כניסה</span>
-                  <ArrowLeft size={18} />
+                  <span>{isRegister ? 'הרשמה' : 'כניסה'}</span>
+                  {isRegister ? <UserPlus size={18} /> : <ArrowLeft size={18} />}
                 </>
               )}
             </button>
           </form>
           
           <div className="login-footer">
-            <p>אין צורך בסיסמה - רק שם משתמש</p>
+            <p>
+              {isRegister 
+                ? 'כבר יש לך חשבון?' 
+                : 'עוד אין לך חשבון?'}
+              <button onClick={toggleMode} className="toggle-link">
+                {isRegister ? 'התחבר/י' : 'הירשם/י'}
+              </button>
+            </p>
           </div>
         </div>
       </div>

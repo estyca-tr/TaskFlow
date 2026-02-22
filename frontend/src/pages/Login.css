@@ -86,6 +86,40 @@
   font-size: 1rem;
 }
 
+/* Mode Toggle */
+.login-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem;
+  background: var(--color-bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #FFD000 0%, #FFAA00 100%);
+  color: #000;
+  font-weight: 600;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
@@ -206,6 +240,27 @@
 .login-footer p {
   color: var(--color-text-muted);
   font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.toggle-link {
+  background: none;
+  border: none;
+  color: #FFD000;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: all 0.2s;
+}
+
+.toggle-link:hover {
+  color: #FFAA00;
 }
 
 /* Animation */
