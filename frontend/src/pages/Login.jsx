@@ -72,6 +72,11 @@ function Login() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && username.trim()) {
+                      handleSubmit(e)
+                    }
+                  }}
                   placeholder="הכנס/י את שמך..."
                   autoFocus
                   disabled={loading}
