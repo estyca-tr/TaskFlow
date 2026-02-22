@@ -551,24 +551,60 @@ h3 {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .layout {
+    flex-direction: column-reverse;
+  }
+  
   .sidebar {
     width: 100%;
     height: auto;
-    position: relative;
+    position: fixed;
+    bottom: 0;
+    top: auto;
+    right: 0;
     border-left: none;
-    border-bottom: 1px solid var(--border-subtle);
+    border-top: 1px solid var(--border-subtle);
+    background: rgba(10, 10, 15, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   
   .main-content {
     margin-right: 0;
-    padding: 1.5rem 1rem;
+    padding: 1.25rem 1rem;
+    padding-bottom: 100px; /* Space for bottom nav */
+    min-height: calc(100vh - 80px);
   }
   
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
   
   h1 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .card {
+    padding: 1rem;
+  }
+  
+  .btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Two column layout on mobile */
+  .two-column-layout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }
