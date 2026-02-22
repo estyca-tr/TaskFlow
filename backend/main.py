@@ -32,17 +32,19 @@ app = FastAPI(
     root_path=""  # Let the proxy handle paths
 )
 
-# Add proxy headers middleware first
-app.add_middleware(ProxyHeadersMiddleware)
-
-# CORS configuration - allow all origins for production
+# CORS configuration - allow all origins for production (must be first)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=86400,  # Cache preflight for 24 hours
 )
+
+# Add proxy headers middleware after CORS
+app.add_middleware(ProxyHeadersMiddleware)
 
 # Include routers
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
