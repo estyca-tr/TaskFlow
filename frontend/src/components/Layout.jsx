@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, Plus, BarChart3, CheckSquare, Sparkles, CalendarDays, StickyNote, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, Users, Plus, BarChart3, CheckSquare, Sparkles, CalendarDays, StickyNote, LogOut, User, X } from 'lucide-react'
 import { useUser } from '../context/UserContext'
 import './Layout.css'
 
@@ -17,6 +18,7 @@ function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useUser()
+  const [showUserMenu, setShowUserMenu] = useState(false)
   
   const handleLogout = () => {
     logout()
@@ -82,6 +84,40 @@ function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+      
+      {/* Mobile User Button */}
+      <button className="mobile-user-btn" onClick={() => setShowUserMenu(true)}>
+        <User size={20} />
+      </button>
+      
+      {/* Mobile User Menu */}
+      {showUserMenu && (
+        <div className="mobile-user-overlay" onClick={() => setShowUserMenu(false)}>
+          <div className="mobile-user-menu" onClick={e => e.stopPropagation()}>
+            <div className="mobile-menu-header">
+              <h3>חשבון</h3>
+              <button className="close-menu" onClick={() => setShowUserMenu(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mobile-user-info">
+              <div className="mobile-user-avatar">
+                <User size={24} />
+              </div>
+              <div className="mobile-user-details">
+                <span className="mobile-user-name">{user?.display_name || user?.username}</span>
+                <span className="mobile-user-label">מחובר/ת</span>
+              </div>
+            </div>
+            
+            <button className="mobile-logout-btn" onClick={handleLogout}>
+              <LogOut size={18} />
+              התנתק/י
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
