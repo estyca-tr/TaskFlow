@@ -482,7 +482,11 @@ function MyTasks() {
                     <div className="task-main">
                       <div className="assigned-badge">
                         <UserCheck size={14} />
-                        <span>הוקצה אלייך</span>
+                        <span>
+                          {task.assigned_by 
+                            ? `הוקצה ע״י ${task.assigned_by}` 
+                            : 'הוקצה אלייך'}
+                        </span>
                       </div>
                       <h4 className="task-title">{task.title}</h4>
                       {task.description && (

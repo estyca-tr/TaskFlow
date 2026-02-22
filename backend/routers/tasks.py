@@ -14,13 +14,22 @@ from schemas import (
 router = APIRouter()
 
 
-def build_task_response(task: Task, db: Session) -> TaskResponse:
-    """Build a TaskResponse with person name"""
+def build_task_response(task: Task, db: Session, include_creator: bool = False) -> TaskResponse:
+    """Build a TaskResponse with person name and optionally creator info"""
     person_name = None
     if task.person_id:
         person = db.query(Employee).filter(Employee.id == task.person_id).first()
         if person:
             person_name = person.name
+    
+    # Get creator info if requested
+    assigned_by = None
+    assigned_by_id = None
+    if include_creator and task.user_id:
+        creator = db.query(User).filter(User.id == task.user_id).first()
+        if creator:
+            assigned_by = creator.display_name or creator.username
+            assigned_by_id = creator.id
     
     return TaskResponse(
         id=task.id,
@@ -32,6 +41,8 @@ def build_task_response(task: Task, db: Session) -> TaskResponse:
         person_id=task.person_id,
         meeting_id=task.meeting_id,
         person_name=person_name,
+        assigned_by=assigned_by,
+        assigned_by_id=assigned_by_id,
         due_date=task.due_date,
         completed_at=task.completed_at,
         created_at=task.created_at,
@@ -131,6 +142,7 @@ def get_tasks_assigned_to_me(
     Get tasks that are assigned to the current user by name matching.
     These are tasks created by OTHER users where the person_id refers to 
     an Employee whose name matches the current user's username.
+    Also auto-creates a person entry for the task creator if not exists.
     """
     # Get current user
     current_user = db.query(User).filter(User.id == user_id).first()
@@ -163,7 +175,31 @@ def get_tasks_assigned_to_me(
     
     tasks = query.order_by(Task.priority.desc(), Task.created_at.desc()).all()
     
-    return [build_task_response(task, db) for task in tasks]
+    # Auto-create person entries for task creators in current user's people list
+    for task in tasks:
+        if task.user_id:
+            creator = db.query(User).filter(User.id == task.user_id).first()
+            if creator:
+                creator_name = creator.display_name or creator.username
+                # Check if this person already exists in current user's people list
+                existing_person = db.query(Employee).filter(
+                    Employee.user_id == user_id,
+                    func.lower(func.trim(Employee.name)) == creator_name.strip().lower()
+                ).first()
+                
+                if not existing_person:
+                    # Create a new person entry for the creator
+                    new_person = Employee(
+                        user_id=user_id,
+                        name=creator_name,
+                        person_type="colleague",  # Default to colleague
+                        notes=f"נוסף אוטומטית - יצר/ה משימות עבורך"
+                    )
+                    db.add(new_person)
+    
+    db.commit()
+    
+    return [build_task_response(task, db, include_creator=True) for task in tasks]
 
 
 @router.get("/assigned-to-me/count")
