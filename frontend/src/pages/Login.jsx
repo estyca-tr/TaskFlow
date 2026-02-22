@@ -38,7 +38,7 @@ function Login() {
       
       navigate('/')
     } catch (err) {
-      setError('שגיאה בכניסה, נסה/י שוב')
+      setError(`שגיאה: ${err.message}`)
       console.error('Login error:', err)
     } finally {
       setLoading(false)
