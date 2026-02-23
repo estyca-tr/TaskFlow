@@ -3,7 +3,7 @@ import {
   CheckCircle2, Circle, Clock, Plus, Filter, 
   User, Calendar, MessageSquare, AlertCircle,
   Trash2, Target, Sparkles, X, Edit3, PlayCircle, Save, Search,
-  ChevronRight, ChevronLeft, Inbox, UserCheck
+  ChevronRight, ChevronLeft, Inbox, UserCheck, UserPlus, Users, Briefcase, Crown
 } from 'lucide-react'
 import { tasksAPI, employeesAPI } from '../services/api'
 import { 
@@ -63,6 +63,14 @@ function MyTasks() {
   const [editCalendarMonth, setEditCalendarMonth] = useState(new Date())
   const personSearchRef = useRef(null)
   
+  // New person creation state
+  const [showNewPersonForm, setShowNewPersonForm] = useState(false)
+  const [newPerson, setNewPerson] = useState({
+    name: '',
+    person_type: 'colleague',
+    notes: ''
+  })
+  
   useEffect(() => {
     loadData()
   }, [filter, statusFilter])
@@ -119,6 +127,28 @@ function MyTasks() {
     setPersonSearch('')
     setShowPersonDropdown(false)
     setShowCalendar(false)
+    setShowNewPersonForm(false)
+    setNewPerson({ name: '', person_type: 'colleague', notes: '' })
+  }
+  
+  async function handleCreateNewPerson(e) {
+    e.preventDefault()
+    if (!newPerson.name.trim()) return
+    
+    try {
+      const createdPerson = await employeesAPI.create(newPerson)
+      // Add to people list
+      setPeople([...people, createdPerson])
+      // Select this person for the task
+      setNewTask({ ...newTask, person_id: createdPerson.id })
+      setPersonSearch(createdPerson.name)
+      // Close the form
+      setShowNewPersonForm(false)
+      setShowPersonDropdown(false)
+      setNewPerson({ name: '', person_type: 'colleague', notes: '' })
+    } catch (err) {
+      console.error('Error creating person:', err)
+    }
   }
   
   function getCalendarDays(month) {
@@ -622,8 +652,12 @@ function MyTasks() {
                         onChange={e => {
                           setPersonSearch(e.target.value)
                           setShowPersonDropdown(true)
+                          setShowNewPersonForm(false)
                         }}
-                        onFocus={() => setShowPersonDropdown(true)}
+                        onFocus={() => {
+                          setShowPersonDropdown(true)
+                          setShowNewPersonForm(false)
+                        }}
                       />
                       {newTask.person_id && (
                         <button
@@ -638,8 +672,23 @@ function MyTasks() {
                         </button>
                       )}
                     </div>
-                    {showPersonDropdown && (
+                    {showPersonDropdown && !showNewPersonForm && (
                       <div className="person-dropdown">
+                        {/* Add New Person Option */}
+                        <div
+                          className="person-option add-new-person"
+                          onClick={() => {
+                            setShowPersonDropdown(false)
+                            setShowNewPersonForm(true)
+                            setNewPerson({ ...newPerson, name: personSearch })
+                          }}
+                        >
+                          <UserPlus size={16} />
+                          <span>הוסף אדם חדש</span>
+                          {personSearch && <span className="new-person-preview">"{personSearch}"</span>}
+                        </div>
+                        
+                        {/* Existing People */}
                         {people
                           .filter(p => p.name.toLowerCase().includes(personSearch.toLowerCase()))
                           .map(person => (
@@ -658,9 +707,82 @@ function MyTasks() {
                               </span>
                             </div>
                           ))}
-                        {people.filter(p => p.name.toLowerCase().includes(personSearch.toLowerCase())).length === 0 && (
-                          <div className="person-option empty">לא נמצאו תוצאות</div>
+                        {people.filter(p => p.name.toLowerCase().includes(personSearch.toLowerCase())).length === 0 && !personSearch && (
+                          <div className="person-option empty">אין אנשים ברשימה</div>
                         )}
+                      </div>
+                    )}
+                    
+                    {/* New Person Form */}
+                    {showNewPersonForm && (
+                      <div className="new-person-form">
+                        <div className="new-person-form-header">
+                          <h4>
+                            <UserPlus size={16} />
+                            הוספת אדם חדש
+                          </h4>
+                          <button 
+                            type="button" 
+                            className="close-form-btn"
+                            onClick={() => setShowNewPersonForm(false)}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        
+                        <div className="new-person-form-body">
+                          <div className="form-group">
+                            <label className="form-label">שם</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={newPerson.name}
+                              onChange={e => setNewPerson({ ...newPerson, name: e.target.value })}
+                              placeholder="הכנס שם..."
+                              autoFocus
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label className="form-label">סוג</label>
+                            <div className="person-type-selector">
+                              <button
+                                type="button"
+                                className={`person-type-option ${newPerson.person_type === 'employee' ? 'active' : ''}`}
+                                onClick={() => setNewPerson({ ...newPerson, person_type: 'employee' })}
+                              >
+                                <Users size={14} />
+                                עובד
+                              </button>
+                              <button
+                                type="button"
+                                className={`person-type-option ${newPerson.person_type === 'colleague' ? 'active' : ''}`}
+                                onClick={() => setNewPerson({ ...newPerson, person_type: 'colleague' })}
+                              >
+                                <Briefcase size={14} />
+                                קולגה
+                              </button>
+                              <button
+                                type="button"
+                                className={`person-type-option ${newPerson.person_type === 'manager' ? 'active' : ''}`}
+                                onClick={() => setNewPerson({ ...newPerson, person_type: 'manager' })}
+                              >
+                                <Crown size={14} />
+                                מנהל
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            className="btn btn-primary add-person-btn"
+                            onClick={handleCreateNewPerson}
+                            disabled={!newPerson.name.trim()}
+                          >
+                            <Plus size={16} />
+                            הוסף ובחר
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
