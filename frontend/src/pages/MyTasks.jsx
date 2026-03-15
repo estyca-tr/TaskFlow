@@ -3,7 +3,8 @@ import {
   CheckCircle2, Circle, Clock, Plus, Filter, 
   User, Calendar, MessageSquare, AlertCircle,
   Trash2, Target, Sparkles, X, Edit3, PlayCircle, Save, Search,
-  ChevronRight, ChevronLeft, Inbox, UserCheck, UserPlus, Users, Briefcase, Crown
+  ChevronRight, ChevronLeft, Inbox, UserCheck, UserPlus, Users, Briefcase, Crown,
+  Camera
 } from 'lucide-react'
 import { tasksAPI, employeesAPI } from '../services/api'
 import { 
@@ -12,6 +13,7 @@ import {
   addDays, addMonths, subMonths, isSameMonth, isSameDay
 } from 'date-fns'
 import { he } from 'date-fns/locale'
+import ScreenshotExtractor from '../components/ScreenshotExtractor'
 import './MyTasks.css'
 
 const TASK_TYPES = {
@@ -43,6 +45,7 @@ function MyTasks() {
   const [showNewTask, setShowNewTask] = useState(false)
   const [stats, setStats] = useState({ total: 0, pending: 0, in_progress: 0, completed: 0 })
   const [activeTab, setActiveTab] = useState('my') // 'my' or 'assigned'
+  const [showScreenshotExtractor, setShowScreenshotExtractor] = useState(false)
   
   const [newTask, setNewTask] = useState({
     title: '',
@@ -269,6 +272,24 @@ function MyTasks() {
     return 'upcoming'
   }
   
+  async function handleTasksExtracted(extractedTasks) {
+    try {
+      for (const task of extractedTasks) {
+        const taskData = {
+          title: task.title,
+          description: task.description || '',
+          task_type: 'from_meeting',
+          priority: task.priority || 'medium',
+          due_date: task.due_date ? new Date(task.due_date).toISOString() : null
+        }
+        await tasksAPI.create(taskData)
+      }
+      loadData()
+    } catch (err) {
+      console.error('Error creating tasks:', err)
+    }
+  }
+  
   if (loading && tasks.length === 0) {
     return (
       <div className="loading">
@@ -289,10 +310,16 @@ function MyTasks() {
               <p className="header-subtitle">נהל את המשימות והנושאים שלך</p>
             </div>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowNewTask(true)}>
-            <Plus size={18} />
-            משימה חדשה
-          </button>
+          <div className="header-actions">
+            <button className="btn btn-ai" onClick={() => setShowScreenshotExtractor(true)}>
+              <Camera size={18} />
+              חלץ מתמונה
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowNewTask(true)}>
+              <Plus size={18} />
+              משימה חדשה
+            </button>
+          </div>
         </div>
         
         {/* Stats Row */}
@@ -1024,6 +1051,18 @@ function MyTasks() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Screenshot Extractor Modal */}
+      {showScreenshotExtractor && (
+        <div className="modal-overlay" onClick={() => setShowScreenshotExtractor(false)}>
+          <div className="screenshot-modal" onClick={e => e.stopPropagation()}>
+            <ScreenshotExtractor 
+              onTasksExtracted={handleTasksExtracted}
+              onClose={() => setShowScreenshotExtractor(false)}
+            />
           </div>
         </div>
       )}

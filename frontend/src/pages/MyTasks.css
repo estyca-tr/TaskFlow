@@ -1167,3 +1167,48 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* AI Button Style */
+.btn-ai {
+  background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-ai:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Screenshot Modal */
+.screenshot-modal {
+  width: 600px;
+  max-width: 95vw;
+  max-height: 90vh;
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

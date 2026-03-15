@@ -219,6 +219,12 @@ export const tasksAPI = {
   
   delete: (id) => fetchAPI(`/tasks/${id}`, {
     method: 'DELETE'
+  }),
+  
+  // Extract tasks from screenshot using AI Vision
+  extractFromScreenshot: (data) => fetchAPI('/tasks/extract-from-screenshot', {
+    method: 'POST',
+    body: JSON.stringify(data)
   })
 }
 

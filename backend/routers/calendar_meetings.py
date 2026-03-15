@@ -182,11 +182,14 @@ async def delete_calendar_meeting(meeting_id: int, db: Session = Depends(get_db)
 async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
     """חילוץ ישיבות מצילום מסך של קאלנדר באמצעות AI"""
     
-    # Get API key from environment
+    # Get API keys from environment
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
     
-    if not anthropic_api_key and not openai_api_key:
+    if not anthropic_api_key and not openai_api_key and not azure_openai_key:
         # Return sample data for testing if no API key
         return ScreenshotExtractResponse(
             meetings=[
@@ -208,11 +211,15 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
     # Extract base64 data from data URL if present
     image_data = request.image
     if image_data.startswith('data:'):
-        # Extract the base64 part after the comma
         image_data = image_data.split(',')[1]
     
     try:
-        if anthropic_api_key:
+        if azure_openai_key and azure_openai_endpoint:
+            meetings = await extract_with_azure_openai(
+                image_data, azure_openai_key, azure_openai_endpoint, 
+                azure_openai_deployment, request.target_date
+            )
+        elif anthropic_api_key:
             meetings = await extract_with_claude(image_data, anthropic_api_key, request.target_date)
         else:
             meetings = await extract_with_openai(image_data, openai_api_key, request.target_date)
@@ -353,6 +360,83 @@ If no meetings in image, return: {{"meetings": []}}
         
         if response.status_code != 200:
             raise Exception(f"OpenAI API error: {response.text}")
+        
+        result = response.json()
+        content = result["choices"][0]["message"]["content"]
+        
+        # Parse JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            data = json.loads(json_match.group())
+            return [ExtractedMeeting(**m) for m in data.get("meetings", [])]
+        
+        return []
+
+
+async def extract_with_azure_openai(
+    image_base64: str, 
+    api_key: str, 
+    endpoint: str, 
+    deployment: str, 
+    target_date: str
+) -> List[ExtractedMeeting]:
+    """Extract meetings using Azure OpenAI Vision API"""
+    
+    prompt = f"""Analyze this calendar screenshot and extract all meetings/events.
+
+For each meeting, provide these details in JSON format:
+- title: meeting name (in Hebrew if visible)
+- start_time: start time in HH:MM (24-hour format)
+- end_time: end time in HH:MM (24-hour format)  
+- location: location (if shown)
+- attendees: attendees (if shown)
+
+Target date: {target_date}
+
+Return JSON only:
+{{"meetings": [
+  {{"title": "...", "start_time": "HH:MM", "end_time": "HH:MM", "location": "...", "attendees": "..."}},
+  ...
+]}}
+
+If no meetings in image, return: {{"meetings": []}}
+"""
+
+    # Azure OpenAI API URL
+    api_url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            api_url,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json"
+            },
+            json={
+                "max_tokens": 2000,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{image_base64}"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            },
+            timeout=60.0
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Azure OpenAI API error: {response.text}")
         
         result = response.json()
         content = result["choices"][0]["message"]["content"]

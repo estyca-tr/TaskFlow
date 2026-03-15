@@ -3,6 +3,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import datetime
+from pydantic import BaseModel
+import os
+import httpx
+import json
+import re
 
 from database import get_db
 from models import Task, Employee, Meeting, User
@@ -12,6 +17,28 @@ from schemas import (
 )
 
 router = APIRouter()
+
+
+# ============== Screenshot Task Extraction Models ==============
+
+class ExtractedTask(BaseModel):
+    title: str
+    description: Optional[str] = None
+    priority: str = "medium"  # low, medium, high
+    person_name: Optional[str] = None  # Related person if detected
+    due_date: Optional[str] = None  # YYYY-MM-DD if detected
+
+
+class ScreenshotTaskExtractRequest(BaseModel):
+    image: str  # Base64 encoded image
+    context: Optional[str] = None  # Additional context about the meeting
+
+
+class ScreenshotTaskExtractResponse(BaseModel):
+    tasks: List[ExtractedTask]
+    total: int
+    meeting_title: Optional[str] = None
+    summary: Optional[str] = None
 
 
 def build_task_response(task: Task, db: Session, include_creator: bool = False, is_assigned_to_me: bool = False) -> TaskResponse:
@@ -459,6 +486,303 @@ def create_bulk_tasks(tasks: List[TaskCreate], db: Session = Depends(get_db)):
         db.refresh(task)
     
     return [build_task_response(task, db) for task in created_tasks]
+
+
+# ============== Screenshot Task Extraction ==============
+
+@router.post("/extract-from-screenshot", response_model=ScreenshotTaskExtractResponse)
+async def extract_tasks_from_screenshot(request: ScreenshotTaskExtractRequest):
+    """חילוץ משימות מצילום מסך של ישיבה/קאלנדר באמצעות AI Vision"""
+    
+    # Get API keys from environment
+    azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not azure_openai_key and not anthropic_api_key and not openai_api_key:
+        # Return sample data for testing
+        return ScreenshotTaskExtractResponse(
+            tasks=[
+                ExtractedTask(
+                    title="לעקוב אחרי נושא X",
+                    description="נקודה שעלתה בישיבה",
+                    priority="medium"
+                ),
+                ExtractedTask(
+                    title="לתאם פגישת המשך",
+                    priority="high"
+                )
+            ],
+            total=2,
+            meeting_title="ישיבת דוגמה",
+            summary="זוהי תשובת דוגמה - אנא הגדירו AZURE_OPENAI_API_KEY לחילוץ אמיתי"
+        )
+    
+    # Extract base64 data from data URL if present
+    image_data = request.image
+    if image_data.startswith('data:'):
+        image_data = image_data.split(',')[1]
+    
+    try:
+        if azure_openai_key and azure_openai_endpoint:
+            result = await extract_tasks_azure_openai(
+                image_data, azure_openai_key, azure_openai_endpoint, 
+                azure_openai_deployment, request.context
+            )
+        elif anthropic_api_key:
+            result = await extract_tasks_claude(image_data, anthropic_api_key, request.context)
+        else:
+            result = await extract_tasks_openai(image_data, openai_api_key, request.context)
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extracting tasks: {str(e)}")
+
+
+async def extract_tasks_azure_openai(
+    image_base64: str, 
+    api_key: str, 
+    endpoint: str, 
+    deployment: str,
+    context: Optional[str] = None
+) -> ScreenshotTaskExtractResponse:
+    """Extract tasks from screenshot using Azure OpenAI Vision"""
+    
+    context_text = f"\nהקשר נוסף: {context}" if context else ""
+    
+    prompt = f"""אנא נתח את צילום המסך הזה וחלץ את כל המשימות, פעולות נדרשות, או נקודות מעקב שאתה רואה.
+
+זה יכול להיות:
+- צילום מסך של יומן/קאלנדר עם ישיבות
+- צילום של הערות ישיבה
+- צילום של רשימת משימות
+- כל תמונה אחרת עם מידע על משימות
+{context_text}
+
+לכל משימה, ספק את הפרטים הבאים בפורמט JSON:
+- title: תיאור קצר של המשימה (בעברית אם אפשר)
+- description: פרטים נוספים (אופציונלי)
+- priority: "low" / "medium" / "high" (הערך לפי החשיבות שנראית)
+- person_name: שם האדם הקשור (אם מופיע)
+- due_date: תאריך יעד בפורמט YYYY-MM-DD (אם מופיע)
+
+החזר תשובה בפורמט JSON בלבד:
+{{
+  "meeting_title": "שם הישיבה/הקשר (אם נראה)",
+  "summary": "סיכום קצר של מה שראית",
+  "tasks": [
+    {{"title": "...", "description": "...", "priority": "medium", "person_name": "...", "due_date": "YYYY-MM-DD"}},
+    ...
+  ]
+}}
+
+אם אין משימות בתמונה, החזר: {{"tasks": [], "summary": "לא נמצאו משימות בתמונה"}}
+"""
+
+    api_url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            api_url,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json"
+            },
+            json={
+                "max_tokens": 3000,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{image_base64}"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            },
+            timeout=90.0
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Azure OpenAI API error: {response.text}")
+        
+        result = response.json()
+        content = result["choices"][0]["message"]["content"]
+        
+        # Parse JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            data = json.loads(json_match.group())
+            tasks = [ExtractedTask(**t) for t in data.get("tasks", [])]
+            return ScreenshotTaskExtractResponse(
+                tasks=tasks,
+                total=len(tasks),
+                meeting_title=data.get("meeting_title"),
+                summary=data.get("summary")
+            )
+        
+        return ScreenshotTaskExtractResponse(tasks=[], total=0, summary="לא הצלחתי לפרסר את התשובה")
+
+
+async def extract_tasks_claude(
+    image_base64: str, 
+    api_key: str, 
+    context: Optional[str] = None
+) -> ScreenshotTaskExtractResponse:
+    """Extract tasks from screenshot using Claude Vision"""
+    
+    context_text = f"\nהקשר נוסף: {context}" if context else ""
+    
+    prompt = f"""אנא נתח את צילום המסך הזה וחלץ את כל המשימות, פעולות נדרשות, או נקודות מעקב.
+{context_text}
+
+לכל משימה, ספק:
+- title: תיאור קצר
+- description: פרטים נוספים (אופציונלי)
+- priority: "low" / "medium" / "high"
+- person_name: שם האדם הקשור (אם מופיע)
+- due_date: תאריך יעד בפורמט YYYY-MM-DD (אם מופיע)
+
+החזר JSON בלבד:
+{{
+  "meeting_title": "שם הישיבה (אם נראה)",
+  "summary": "סיכום קצר",
+  "tasks": [{{"title": "...", "description": "...", "priority": "medium", "person_name": "...", "due_date": "..."}}]
+}}
+"""
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 3000,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": image_base64
+                                }
+                            },
+                            {"type": "text", "text": prompt}
+                        ]
+                    }
+                ]
+            },
+            timeout=90.0
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Claude API error: {response.text}")
+        
+        result = response.json()
+        content = result["content"][0]["text"]
+        
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            data = json.loads(json_match.group())
+            tasks = [ExtractedTask(**t) for t in data.get("tasks", [])]
+            return ScreenshotTaskExtractResponse(
+                tasks=tasks,
+                total=len(tasks),
+                meeting_title=data.get("meeting_title"),
+                summary=data.get("summary")
+            )
+        
+        return ScreenshotTaskExtractResponse(tasks=[], total=0)
+
+
+async def extract_tasks_openai(
+    image_base64: str, 
+    api_key: str, 
+    context: Optional[str] = None
+) -> ScreenshotTaskExtractResponse:
+    """Extract tasks from screenshot using OpenAI Vision"""
+    
+    context_text = f"\nAdditional context: {context}" if context else ""
+    
+    prompt = f"""Analyze this screenshot and extract all tasks, action items, or follow-up points.
+{context_text}
+
+For each task, provide in JSON:
+- title: short description (in Hebrew if content is Hebrew)
+- description: additional details (optional)
+- priority: "low" / "medium" / "high"
+- person_name: related person (if shown)
+- due_date: due date in YYYY-MM-DD (if shown)
+
+Return JSON only:
+{{
+  "meeting_title": "meeting name (if visible)",
+  "summary": "brief summary",
+  "tasks": [{{"title": "...", "description": "...", "priority": "medium", "person_name": "...", "due_date": "..."}}]
+}}
+"""
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o",
+                "max_tokens": 3000,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/png;base64,{image_base64}"}
+                            },
+                            {"type": "text", "text": prompt}
+                        ]
+                    }
+                ]
+            },
+            timeout=90.0
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"OpenAI API error: {response.text}")
+        
+        result = response.json()
+        content = result["choices"][0]["message"]["content"]
+        
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            data = json.loads(json_match.group())
+            tasks = [ExtractedTask(**t) for t in data.get("tasks", [])]
+            return ScreenshotTaskExtractResponse(
+                tasks=tasks,
+                total=len(tasks),
+                meeting_title=data.get("meeting_title"),
+                summary=data.get("summary")
+            )
+        
+        return ScreenshotTaskExtractResponse(tasks=[], total=0)
 
 
 
