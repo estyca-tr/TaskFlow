@@ -214,13 +214,17 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
         image_data = image_data.split(',')[1]
     
     try:
+        print(f"[Screenshot Extract] Using API: {'Azure' if azure_openai_key else 'Anthropic' if anthropic_api_key else 'OpenAI'}")
+        
         if azure_openai_key and azure_openai_endpoint:
             meetings = await extract_with_azure_openai(
                 image_data, azure_openai_key, azure_openai_endpoint, 
                 azure_openai_deployment, request.target_date
             )
         elif anthropic_api_key:
+            print(f"[Screenshot Extract] Calling Claude API...")
             meetings = await extract_with_claude(image_data, anthropic_api_key, request.target_date)
+            print(f"[Screenshot Extract] Claude returned {len(meetings)} meetings")
         else:
             meetings = await extract_with_openai(image_data, openai_api_key, request.target_date)
         
@@ -229,6 +233,9 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
             total=len(meetings)
         )
     except Exception as e:
+        import traceback
+        print(f"[Screenshot Extract] ERROR: {str(e)}")
+        print(f"[Screenshot Extract] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error extracting meetings: {str(e)}")
 
 
@@ -289,8 +296,10 @@ async def extract_with_claude(image_base64: str, api_key: str, target_date: str)
             timeout=60.0
         )
         
+        print(f"[Claude] Response status: {response.status_code}")
         if response.status_code != 200:
-            raise Exception(f"Claude API error: {response.text}")
+            print(f"[Claude] Error response: {response.text}")
+            raise Exception(f"Claude API error (status {response.status_code}): {response.text}")
         
         result = response.json()
         content = result["content"][0]["text"]
