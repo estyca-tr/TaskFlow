@@ -183,13 +183,14 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
     """חילוץ ישיבות מצילום מסך של קאלנדר באמצעות AI"""
     
     # Get API keys from environment
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
     openai_api_key = os.getenv("OPENAI_API_KEY")
     azure_openai_key = os.getenv("AZURE_OPENAI_API_KEY")
     azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
     
-    if not anthropic_api_key and not openai_api_key and not azure_openai_key:
+    if not gemini_api_key and not anthropic_api_key and not openai_api_key and not azure_openai_key:
         # Return sample data for testing if no API key
         return ScreenshotExtractResponse(
             meetings=[
@@ -214,9 +215,13 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
         image_data = image_data.split(',')[1]
     
     try:
-        print(f"[Screenshot Extract] Using API: {'Azure' if azure_openai_key else 'Anthropic' if anthropic_api_key else 'OpenAI'}")
+        print(f"[Screenshot Extract] Using API: {'Gemini' if gemini_api_key else 'Azure' if azure_openai_key else 'Anthropic' if anthropic_api_key else 'OpenAI'}")
         
-        if azure_openai_key and azure_openai_endpoint:
+        if gemini_api_key:
+            print(f"[Screenshot Extract] Calling Gemini API...")
+            meetings = await extract_with_gemini(image_data, gemini_api_key, request.target_date)
+            print(f"[Screenshot Extract] Gemini returned {len(meetings)} meetings")
+        elif azure_openai_key and azure_openai_endpoint:
             meetings = await extract_with_azure_openai(
                 image_data, azure_openai_key, azure_openai_endpoint, 
                 azure_openai_deployment, request.target_date
@@ -237,6 +242,71 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
         print(f"[Screenshot Extract] ERROR: {str(e)}")
         print(f"[Screenshot Extract] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error extracting meetings: {str(e)}")
+
+
+async def extract_with_gemini(image_base64: str, api_key: str, target_date: str) -> List[ExtractedMeeting]:
+    """Extract meetings using Google Gemini Vision API"""
+    
+    prompt = f"""Analyze this calendar screenshot and extract all meetings/events.
+
+For each meeting, provide these details in JSON format:
+- title: meeting name (in Hebrew if visible)
+- start_time: start time in HH:MM (24-hour format)
+- end_time: end time in HH:MM (24-hour format)  
+- location: location (if shown)
+- attendees: attendees (if shown)
+
+Target date: {target_date}
+
+Return JSON only:
+{{"meetings": [
+  {{"title": "...", "start_time": "HH:MM", "end_time": "HH:MM", "location": "...", "attendees": "..."}},
+  ...
+]}}
+
+If no meetings in image, return: {{"meetings": []}}
+"""
+
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            api_url,
+            headers={"Content-Type": "application/json"},
+            json={
+                "contents": [{
+                    "parts": [
+                        {
+                            "inline_data": {
+                                "mime_type": "image/png",
+                                "data": image_base64
+                            }
+                        },
+                        {"text": prompt}
+                    ]
+                }],
+                "generationConfig": {
+                    "maxOutputTokens": 2000
+                }
+            },
+            timeout=60.0
+        )
+        
+        print(f"[Gemini] Response status: {response.status_code}")
+        if response.status_code != 200:
+            print(f"[Gemini] Error response: {response.text}")
+            raise Exception(f"Gemini API error (status {response.status_code}): {response.text}")
+        
+        result = response.json()
+        content = result["candidates"][0]["content"]["parts"][0]["text"]
+        
+        # Parse JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            data = json.loads(json_match.group())
+            return [ExtractedMeeting(**m) for m in data.get("meetings", [])]
+        
+        return []
 
 
 async def extract_with_claude(image_base64: str, api_key: str, target_date: str) -> List[ExtractedMeeting]:
