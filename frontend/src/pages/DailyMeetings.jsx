@@ -31,6 +31,11 @@ function DailyMeetings() {
   useEffect(() => {
     if (!showScreenshotModal) return
     
+    // Focus the modal when it opens
+    if (modalRef.current) {
+      modalRef.current.focus()
+    }
+    
     function handleGlobalPaste(e) {
       const items = e.clipboardData?.items
       if (!items) return
@@ -51,8 +56,8 @@ function DailyMeetings() {
       }
     }
     
-    document.addEventListener('paste', handleGlobalPaste)
-    return () => document.removeEventListener('paste', handleGlobalPaste)
+    window.addEventListener('paste', handleGlobalPaste)
+    return () => window.removeEventListener('paste', handleGlobalPaste)
   }, [showScreenshotModal])
   
   const [newMeeting, setNewMeeting] = useState({
@@ -563,7 +568,12 @@ function DailyMeetings() {
       {/* Screenshot Upload Modal */}
       {showScreenshotModal && (
         <div className="modal-overlay" onClick={() => setShowScreenshotModal(false)}>
-          <div className="modal screenshot-modal" onClick={e => e.stopPropagation()}>
+          <div 
+            ref={modalRef}
+            className="modal screenshot-modal" 
+            onClick={e => e.stopPropagation()}
+            tabIndex={-1}
+          >
             <div className="modal-header">
               <h2>
                 <Image size={20} />
