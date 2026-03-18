@@ -25,6 +25,35 @@ function DailyMeetings() {
   const [extracting, setExtracting] = useState(false)
   const [extractError, setExtractError] = useState(null)
   const fileInputRef = useRef(null)
+  const modalRef = useRef(null)
+  
+  // Global paste listener when modal is open
+  useEffect(() => {
+    if (!showScreenshotModal) return
+    
+    function handleGlobalPaste(e) {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
+          const file = item.getAsFile()
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            setScreenshotImage(event.target.result)
+            setExtractedMeetings([])
+            setExtractError(null)
+          }
+          reader.readAsDataURL(file)
+          break
+        }
+      }
+    }
+    
+    document.addEventListener('paste', handleGlobalPaste)
+    return () => document.removeEventListener('paste', handleGlobalPaste)
+  }, [showScreenshotModal])
   
   const [newMeeting, setNewMeeting] = useState({
     title: '',
@@ -553,7 +582,7 @@ function DailyMeetings() {
                 >
                   <Upload size={48} />
                   <h3>העלה צילום מסך מהקאלנדר</h3>
-                  <p>גרור תמונה לכאן, הדבק (Ctrl+V) או לחץ לבחירת קובץ</p>
+                  <p>הדבק מיד עם Ctrl+V, או לחץ כאן לבחירת קובץ</p>
                   <input
                     ref={fileInputRef}
                     type="file"
