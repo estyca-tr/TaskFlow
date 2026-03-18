@@ -481,8 +481,12 @@ Return JSON only:
 If no meetings in image, return: {{"meetings": []}}
 """
 
-    # Azure OpenAI API URL
-    api_url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview"
+    # Azure OpenAI API URL - remove trailing slash from endpoint if present
+    endpoint = endpoint.rstrip('/')
+    api_url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-08-01-preview"
+    
+    print(f"[Azure] Calling URL: {api_url}")
+    print(f"[Azure] Deployment: {deployment}")
     
     async with httpx.AsyncClient() as client:
         response = await client.post(
