@@ -233,16 +233,21 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
         else:
             meetings = await extract_with_openai(image_data, openai_api_key, request.target_date)
         
-        # Remove duplicate meetings (same title and start time)
-        seen = set()
+        # Remove duplicate meetings (same start time, or very similar title)
+        print(f"[Screenshot Extract] Raw meetings from AI: {len(meetings)}")
+        for m in meetings:
+            print(f"  - {m.start_time}-{m.end_time}: {m.title}")
+        
+        seen_times = set()
         unique_meetings = []
         for meeting in meetings:
-            key = (meeting.title.strip().lower(), meeting.start_time)
-            if key not in seen:
-                seen.add(key)
+            # Use start_time as primary key (usually unique per meeting)
+            key = meeting.start_time
+            if key not in seen_times:
+                seen_times.add(key)
                 unique_meetings.append(meeting)
         
-        print(f"[Screenshot Extract] Removed {len(meetings) - len(unique_meetings)} duplicates")
+        print(f"[Screenshot Extract] After dedup: {len(unique_meetings)} (removed {len(meetings) - len(unique_meetings)})")
         
         return ScreenshotExtractResponse(
             meetings=unique_meetings,
@@ -472,24 +477,21 @@ async def extract_with_azure_openai(
 ) -> List[ExtractedMeeting]:
     """Extract meetings using Azure OpenAI Vision API"""
     
-    prompt = f"""Analyze this calendar screenshot and extract all meetings/events.
+    prompt = f"""Analyze this calendar screenshot and extract all UNIQUE meetings/events for {target_date}.
 
-For each meeting, provide these details in JSON format:
-- title: meeting name (in Hebrew if visible)
-- start_time: start time in HH:MM (24-hour format)
-- end_time: end time in HH:MM (24-hour format)  
-- location: location (if shown)
-- attendees: attendees (if shown)
+CRITICAL: Return each meeting ONLY ONCE. No duplicates allowed.
 
-Target date: {target_date}
+For each unique meeting provide:
+- title: meeting name (keep Hebrew if visible)
+- start_time: HH:MM format (24-hour)
+- end_time: HH:MM format (24-hour)
+- location: location or null
+- attendees: attendees or null
 
-Return JSON only:
-{{"meetings": [
-  {{"title": "...", "start_time": "HH:MM", "end_time": "HH:MM", "location": "...", "attendees": "..."}},
-  ...
-]}}
+Return ONLY valid JSON, no markdown:
+{{"meetings": [{{"title": "Meeting Name", "start_time": "09:00", "end_time": "10:00", "location": null, "attendees": null}}]}}
 
-If no meetings in image, return: {{"meetings": []}}
+Empty calendar: {{"meetings": []}}
 """
 
     # Azure OpenAI API URL - remove trailing slash from endpoint if present
