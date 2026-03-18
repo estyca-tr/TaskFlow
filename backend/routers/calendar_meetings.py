@@ -233,9 +233,20 @@ async def extract_meetings_from_screenshot(request: ScreenshotExtractRequest):
         else:
             meetings = await extract_with_openai(image_data, openai_api_key, request.target_date)
         
+        # Remove duplicate meetings (same title and start time)
+        seen = set()
+        unique_meetings = []
+        for meeting in meetings:
+            key = (meeting.title.strip().lower(), meeting.start_time)
+            if key not in seen:
+                seen.add(key)
+                unique_meetings.append(meeting)
+        
+        print(f"[Screenshot Extract] Removed {len(meetings) - len(unique_meetings)} duplicates")
+        
         return ScreenshotExtractResponse(
-            meetings=meetings,
-            total=len(meetings)
+            meetings=unique_meetings,
+            total=len(unique_meetings)
         )
     except Exception as e:
         import traceback
